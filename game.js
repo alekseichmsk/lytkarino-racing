@@ -198,6 +198,14 @@ wN.repeat.set(.05,.05);
 const waterM=new THREE.MeshPhongMaterial({color:0x2f5566,specular:0x8fb4c8,shininess:120,normalMap:wN,normalScale:new THREE.Vector2(.5,.5),transparent:true,opacity:.9});
 (C.w||[]).forEach(p=>{if(p.length<3)return;const g=new THREE.ShapeGeometry(new THREE.Shape(p.map(q=>new THREE.Vector2(q[0],-q[1]))));g.rotateX(-Math.PI/2);const uv=g.attributes.uv,pp=g.attributes.position;for(let i=0;i<pp.count;i++)uv.setXY(i,pp.getX(i),pp.getZ(i));const m=new THREE.Mesh(g,waterM);m.position.y=.03;m.renderOrder=1;S.add(m);});
 {const embM=new THREE.MeshStandardMaterial({color:0x9a968c,roughness:.85});ribbon((C.w||[]).filter(p=>p.length>8).map(p=>({p:p.concat([p[0]]),w:1.6})),embM,.06,r=>r.w);}
+{const RV=window.RIVER||[];const G=[];RV.forEach(r=>{const sh=new THREE.Shape(r[0].map(q=>new THREE.Vector2(q[0],-q[1])));r[1].forEach(h=>sh.holes.push(new THREE.Path(h.map(q=>new THREE.Vector2(q[0],-q[1])))));const g=new THREE.ShapeGeometry(sh);g.rotateX(-Math.PI/2);const uv=g.attributes.uv,pp=g.attributes.position;for(let i=0;i<pp.count;i++)uv.setXY(i,pp.getX(i),pp.getZ(i));const m=new THREE.Mesh(g,waterM);m.position.y=.04;m.renderOrder=1;m.receiveShadow=true;S.add(m);});
+ // embankment: stone edge + sloped grassy bank along river outline
+ const bankM=new THREE.MeshLambertMaterial({color:0x7d8a5a}),stoneM=new THREE.MeshLambertMaterial({color:0xa39e92});const BP=[],SP=[];
+ RV.forEach(r=>[r[0]].concat(r[1]).forEach(p=>{for(let i=0;i<p.length-1;i++){const a=p[i],b=p[i+1],dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz);if(L<.5)continue;const nx=-dz/L,nz=dx/L;
+  const q=(o,y,t)=>[a[0]+dx*t+nx*o,y,a[1]+dz*t+nz*o];const s1=[q(0,.05,0),q(0,.05,1),q(1.2,.35,1),q(1.2,.35,0)],s2=[q(-0,.05,0),q(0,.05,1),q(-1.2,.35,1),q(-1.2,.35,0)];
+  [s1,s2].forEach(Qd=>{SP.push(...Qd[0],...Qd[1],...Qd[2],...Qd[0],...Qd[2],...Qd[3]);SP.push(...Qd[0],...Qd[2],...Qd[1],...Qd[0],...Qd[3],...Qd[2]);});}}));
+ if(SP.length){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(SP,3));g.computeVertexNormals();S.add(new THREE.Mesh(g,stoneM));}
+ window.__river=RV.length;}
 window.__waterTick=dt=>{wN.offset.x+=dt*.004;wN.offset.y+=dt*.0025;};
 PT('trees & lamps (i');// ---------- trees & lamps (instanced) ----------
 const trees=[],lamps=[],rs=[];
