@@ -311,10 +311,10 @@ add(new THREE.Mesh(new THREE.PlaneGeometry(1.62,.006),mStitch),0,.955,-.69,-1.2)
 // center stack + climate panel
 add(rbox(.3,.2,.06,.015,mGloss),0,.68,-.57,-.25);for(let k=0;k<5;k++)add(new THREE.Mesh(new THREE.BoxGeometry(.04,.012,.006),mAlu),-.1+k*.05,.64,-.54,-.25);
 // curved glossy display (cluster + centre screen) freestanding
-const dispC=document.createElement('canvas');dispC.width=1024;dispC.height=256;const dg=dispC.getContext('2d');const dispT=new THREE.CanvasTexture(dispC);
+const dispC=document.createElement('canvas');dispC.width=2048;dispC.height=512;const dg=dispC.getContext('2d');dg.scale(2,2);const dispT=new THREE.CanvasTexture(dispC);dispT.anisotropy=8;dispT.encoding=THREE.sRGBEncoding;
 const dgeo=new THREE.PlaneGeometry(.84,.2,32,1);{const p=dgeo.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i);p.setZ(i,.06*Math.pow(x/.42,2));}p.needsUpdate=true;dgeo.computeVertexNormals();}
-const disp=add(new THREE.Mesh(dgeo,new THREE.MeshStandardMaterial({map:dispT,emissive:0xffffff,emissiveMap:dispT,emissiveIntensity:.9,roughness:.08,metalness:.3})),-.12,1.045,-.75,-.16);
-{const bg=dgeo.clone();const fr=add(new THREE.Mesh(bg,mGloss),-.12,1.045,-.757,-.16);fr.scale.set(1.025,1.12,1);}
+const disp=add(new THREE.Mesh(dgeo,new THREE.MeshBasicMaterial({map:dispT,toneMapped:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2})),-.12,1.085,-.735,-.16);disp.renderOrder=3;
+{const bg=dgeo.clone();const fr=add(new THREE.Mesh(bg,new THREE.MeshStandardMaterial({color:0x07080a,roughness:.15,metalness:.6})),-.12,1.085,-.742,-.16);fr.scale.set(1.035,1.16,1);}
 add(rbox(.5,.05,.05,.02,mDash2),-.12,.955,-.77);// display foot
 // steering wheel: thick rim, hub, 3 spokes, buttons, paddles
 const sw=add(new THREE.Group(),-.37,.93,-.43,-.32);const swr=new THREE.Group();sw.add(swr);
