@@ -331,6 +331,43 @@ if(!o.isMesh||o.isInstancedMesh||CHUNKS.includes(o))return;let g=o.geometry;if(!
   ng.computeBoundingSphere();const m=new THREE.Mesh(ng,o.material);if(o.userData.fr){m.userData.fr=1;const c=ng.boundingSphere.center;m.userData.c=[c.x,c.z];FURNCH.push(m);}m.position.copy(o.position);m.rotation.copy(o.rotation);m.scale.copy(o.scale);m.renderOrder=o.renderOrder;m.receiveShadow=o.receiveShadow;m.castShadow=o.castShadow;S.add(m);if(!o.userData.fr)CHUNKS.push(m);});
  S.remove(o);});}
 // ---------- street furniture from OSM (FURN) ----------
+// ---------- landmarks (hand-made models at real OSM positions) ----------
+PT("pre-landmarks");{const LMs=window.LM||[];const white=new THREE.MeshLambertMaterial({color:0xf2efe6}),gold=new THREE.MeshStandardMaterial({color:0xd4a64a,metalness:.9,roughness:.25,emissive:0x2a1d05}),
+ blue=new THREE.MeshStandardMaterial({color:0x2f5fa8,metalness:.5,roughness:.4}),conc=new THREE.MeshLambertMaterial({color:0xb8b4aa}),alu=new THREE.MeshStandardMaterial({color:0xc8ccd0,metalness:.7,roughness:.35}),red=new THREE.MeshLambertMaterial({color:0xb52a22});
+ const bid={};C.b.forEach(b=>bid[b.id]=b);
+ const onion=new THREE.LatheGeometry([[0,0],[1,.05],[1.25,.45],[1.2,.9],[.85,1.35],[.4,1.75],[.12,2.05],[0,2.2]].map(p=>new THREE.Vector2(p[0],p[1])),16);
+ const cross=g=>{const c=new THREE.Group();c.add(new THREE.Mesh(new THREE.BoxGeometry(.08,1.4,.08),gold));const h=new THREE.Mesh(new THREE.BoxGeometry(.6,.07,.07),gold);h.position.y=.25;c.add(h);g.add(c);return c;};
+ LMs.forEach(([k,x,z,nm,id])=>{const g=new THREE.Group();g.position.set(x,0,z);g.name='LM:'+nm;
+  if(k=='church'){const b=bid[id];const top=b?b.h||8:0;if(!b){const m=new THREE.Mesh(new THREE.BoxGeometry(10,8,16).translate(0,4,0),white);g.add(m);}
+   const H=b?top:8,s=b?Math.max(1,Math.min(2.2,Math.sqrt(Math.abs(b.p.reduce((a,p,i)=>{const q=b.p[(i+1)%b.p.length];return a+p[0]*q[1]-q[0]*p[1];},0))/2)/9)):1.4;
+   const dr=new THREE.Mesh(new THREE.CylinderGeometry(1.6*s,1.6*s,3*s,16).translate(0,H+1.5*s,0),white);g.add(dr);const on=new THREE.Mesh(onion,id%2?gold:blue);on.scale.setScalar(1.4*s);on.position.y=H+3*s;g.add(on);const c=cross(g);c.position.y=H+3*s+3.1*s+.6;
+   // bell tower at one end
+   const bt=new THREE.Mesh(new THREE.BoxGeometry(3.2*s,H*1.7,3.2*s).translate(0,H*.85,0),white);bt.position.set(0,0,b?0:9);if(!b)g.add(bt);}
+  else if(k=='plane'){// Antonov An-30 on pedestal
+   const P=new THREE.Group();P.position.y=3.2;const fus=new THREE.Mesh(new THREE.CylinderGeometry(1.35,1.35,20,14).rotateX(Math.PI/2),alu);P.add(fus);const nose=new THREE.Mesh(new THREE.SphereGeometry(1.35,14,10,0,Math.PI*2,0,Math.PI/2).rotateX(Math.PI/2),new THREE.MeshStandardMaterial({color:0x9fc2d6,metalness:.3,roughness:.2,transparent:true,opacity:.8}));nose.position.z=10;P.add(nose);
+   const tail=new THREE.Mesh(new THREE.CylinderGeometry(1.3,.35,6,12).rotateX(-Math.PI/2),alu);tail.position.z=-13;P.add(tail);const wing=new THREE.Mesh(new THREE.BoxGeometry(29.2,.35,3.2),alu);wing.position.set(0,1.2,1);P.add(wing);
+   const fin=new THREE.Mesh(new THREE.BoxGeometry(.25,5,3.5),alu);fin.position.set(0,3,-14.5);P.add(fin);const st=new THREE.Mesh(new THREE.BoxGeometry(10,.25,2.2),alu);st.position.set(0,1.2,-15);P.add(st);
+   [-5,5].forEach(ex=>{const en=new THREE.Mesh(new THREE.CylinderGeometry(.75,.6,5,10).rotateX(Math.PI/2),alu);en.position.set(ex,.8,2);P.add(en);const pr=new THREE.Mesh(new THREE.BoxGeometry(4,.25,.08),new THREE.MeshLambertMaterial({color:0x222222}));pr.position.set(ex,.8,4.6);P.add(pr);});
+   const stripe=new THREE.Mesh(new THREE.CylinderGeometry(1.37,1.37,18,14,1,true).rotateX(Math.PI/2),new THREE.MeshLambertMaterial({color:0x2c4f9e,side:THREE.DoubleSide}));stripe.scale.set(1,.3,1);P.add(stripe);
+   g.add(P);g.add(new THREE.Mesh(new THREE.CylinderGeometry(.9,1.2,3.2,10).translate(0,1.6,0),conc));g.rotation.y=.6;}
+  else if(k=='wtower'){g.add(new THREE.Mesh(new THREE.CylinderGeometry(1.8,2.2,22,14).translate(0,11,0),conc));g.add(new THREE.Mesh(new THREE.CylinderGeometry(5.2,3,6,18).translate(0,25,0),conc));g.add(new THREE.Mesh(new THREE.ConeGeometry(5.4,2,18).translate(0,29,0),red));}
+  else if(k=='stela'){const big=/Лыткарино|ЛЗОС|Слава|Героям/.test(nm);const h=big?9:3.2;g.add(new THREE.Mesh(new THREE.BoxGeometry(5,.4,5).translate(0,.2,0),conc));g.add(new THREE.Mesh(new THREE.CylinderGeometry(.35,.9,h,4).rotateY(Math.PI/4).translate(0,h/2+.4,0),big?conc:white));
+   if(/Звезда|Героям|Слава/.test(nm)){const st=new THREE.Shape();for(let i=0;i<10;i++){const r=i%2?.45:1.1,a=i*Math.PI/5+Math.PI/2;st[i?'lineTo':'moveTo'](Math.cos(a)*r,Math.sin(a)*r);}const sm=new THREE.Mesh(new THREE.ExtrudeGeometry(st,{depth:.2,bevelEnabled:false}),red);sm.position.y=h+1.6;g.add(sm);}
+   if(nm){const t=tex(cv(256,64,(c,w,hh)=>{c.fillStyle='#d9c27a';c.fillRect(0,0,w,hh);c.fillStyle='#2a2414';let fs=30;c.font=`bold ${fs}px Arial`;while(c.measureText(nm).width>w-10&&fs>10){fs-=2;c.font=`bold ${fs}px Arial`;}c.textAlign='center';c.textBaseline='middle';c.fillText(nm,w/2,hh/2);}));const pl=new THREE.Mesh(new THREE.PlaneGeometry(1.8,.45),new THREE.MeshBasicMaterial({map:t,side:THREE.DoubleSide}));pl.position.set(0,1.3,.75);g.add(pl);}}
+  else if(k=='manor'){[-3,-1,1,3].forEach(cx=>{const c=new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,6,10).translate(0,3,0),white);c.position.set(cx,0,0);g.add(c);});const ped=new THREE.Mesh(new THREE.CylinderGeometry(0,4.8,1.6,3,1).rotateZ(Math.PI/2).rotateY(Math.PI/2),white);ped.scale.set(1,1,.4);ped.position.y=6.6;g.add(ped);}
+  S.add(g);});window.__lm=LMs.length;PT("landmarks "+LMs.length);}
+// ---------- credits screen ----------
+{const d=document.createElement('div');d.id='credits';d.style.cssText='display:none;position:fixed;inset:6% 8%;background:rgba(10,14,20,.88);color:#dde;font:13px/1.45 Arial,sans-serif;padding:14px 18px;border-radius:10px;overflow:auto;z-index:50;backdrop-filter:blur(4px)';
+ d.innerHTML='<b style="font-size:16px">Лыткарино Racing — источники и авторы</b> <span id="crx" style="float:right;cursor:pointer;font-size:18px">✕</span><ul style="padding-left:18px">'+
+ '<li><b>Карта, здания, дороги, вода, магазины, достопримечательности</b>: © участники OpenStreetMap, лицензия ODbL (openstreetmap.org/copyright).</li>'+
+ '<li><b>Спутниковые снимки</b>: Esri World Imagery — © Esri, Maxar, Earthstar Geographics и сообщество пользователей ГИС.</li>'+
+ '<li><b>Рельеф</b>: AWS Terrain Tiles (Terrarium; данные SRTM, NASA/USGS и др., через Mapzen/Tilezen).</li>'+
+ '<li><b>Фасады</b> (хрущёвки 1-447, П-44, II-49, сталинки, частные дома, гаражи, первые этажи с магазинами): процедурно сгенерированные текстуры из набора lytkarino-textures (GenerateImage + post.py). Настоящие фото фасадов Лыткарино скоро будут добавлены.</li>'+
+ '<li><b>Референсы BMW X5 G05</b>: фото с Wikimedia Commons (авторы указаны на страницах файлов, CC BY-SA); размеры: официальные данные BMW (4935×2004×1765, база 2975).</li>'+
+ '<li><b>Достопримечательности</b> (модели сделаны вручную по OSM): '+(window.LM||[]).filter(l=>l[3]).map(l=>l[3]).filter((v,i,a)=>a.indexOf(v)==i).join(', ')+'.</li>'+
+ '<li><b>Движок</b>: three.js r149 (MIT). Звук V8 синтезирован Web Audio.</li></ul>';
+ document.body.appendChild(d);const b=document.createElement('b');b.id='bCr';b.title='Источники и авторы';b.textContent='ⓘ';const fs=document.getElementById('fs');if(fs&&fs.parentNode)fs.parentNode.insertBefore(b,fs);
+ const tg=e=>{e&&e.stopPropagation();d.style.display=d.style.display=='none'?'block':'none';};b.addEventListener('click',tg);b.addEventListener('touchend',e=>{e.preventDefault();tg(e);});d.querySelector('#crx').addEventListener('click',tg);if(/credits/.test(Q))d.style.display='block';}
 PT("pre-furn");const FURNCH=[];{const FS0=S.children.length;const F=window.FURN;if(F&&!/nofurn/.test(Q)){const mergeG=(L)=>{const A={position:[],normal:[]};L.forEach(g=>{g=g.index?g.toNonIndexed():g;A.position.push(...g.attributes.position.array);A.normal.push(...g.attributes.normal.array);});const o=new THREE.BufferGeometry();o.setAttribute('position',new THREE.Float32BufferAttribute(A.position,3));o.setAttribute('normal',new THREE.Float32BufferAttribute(A.normal,3));return o;};
 const M4=new THREE.Matrix4(),Qt=new THREE.Quaternion(),V=new THREE.Vector3(),Sc=new THREE.Vector3(),Y=new THREE.Vector3(0,1,0);
 const segs=(list,step)=>{const o=[];list.forEach(p=>{for(let i=0;i<p.length-1;i++){const a=p[i],b=p[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<.3||L>400)continue;if(!step){o.push([a,b,L]);continue;}const n=Math.max(1,Math.round(L/step));for(let k=0;k<n;k++){const t0=k/n,t1=(k+1)/n;o.push([[a[0]+(b[0]-a[0])*t0,a[1]+(b[1]-a[1])*t0],[a[0]+(b[0]-a[0])*t1,a[1]+(b[1]-a[1])*t1],L/n]);}}});return o;};
