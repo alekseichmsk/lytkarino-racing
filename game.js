@@ -359,9 +359,9 @@ pBtn.position.set(SX,SY+.103,SZ-.012);pBtn.geometry=new THREE.CylinderGeometry(.
 pBtn.material=new THREE.MeshStandardMaterial({map:new THREE.CanvasTexture(cv(64,64,(g)=>{g.fillStyle='#1a1a1a';g.fillRect(0,0,64,64);g.fillStyle='#fff';g.font='bold 44px sans-serif';g.textAlign='center';g.fillText('P',32,48);})),roughness:.3});
 knobHi.position.set(SX,SY-.004,SZ);
 // PRND indicator next to lever
-const prC=document.createElement('canvas');prC.width=64;prC.height=192;const prT=new THREE.CanvasTexture(prC);
-const prM=add(new THREE.Mesh(new THREE.PlaneGeometry(.045,.13),new THREE.MeshBasicMaterial({map:prT,transparent:true,side:THREE.DoubleSide,depthTest:true,polygonOffset:true,polygonOffsetFactor:-2})),SX+.08,SY+.012,SZ-.01,-1.1);prM.renderOrder=6;
-function drawPRND(){const g=prC.getContext('2d');g.clearRect(0,0,64,192);g.font='bold 40px sans-serif';g.textAlign='center';['P','R','N','D'].forEach((l,i)=>{g.fillStyle=st.sel===l?'#ffffff':'rgba(140,150,160,.5)';if(st.sel===l){g.shadowColor='#7cf';g.shadowBlur=12;}else g.shadowBlur=0;g.fillText(l,32,42+i*46);});prT.needsUpdate=true;}
+const prC=document.createElement('canvas');prC.width=72;prC.height=256;const prT=new THREE.CanvasTexture(prC);
+const prM=add(new THREE.Mesh(new THREE.PlaneGeometry(.05,.175),new THREE.MeshBasicMaterial({map:prT,transparent:true,toneMapped:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4})),SX-.055,.861,SZ+.085,-Math.PI/2);prM.renderOrder=7;
+function drawPRND(){const g=prC.getContext('2d');g.clearRect(0,0,72,256);g.fillStyle='rgba(10,14,20,.85)';g.fillRect(2,2,68,252);g.strokeStyle='rgba(120,180,255,.6)';g.lineWidth=3;g.strokeRect(2,2,68,252);g.font='bold 52px sans-serif';g.textAlign='center';['P','R','N','D'].forEach((l,i)=>{g.fillStyle=st.sel===l?'#ffffff':'#7f8c99';if(st.sel===l){g.shadowColor='#7cf';g.shadowBlur=12;}else g.shadowBlur=0;g.fillText(l,36,52+i*62);});prT.needsUpdate=true;}
 idr.position.set(SX,.85,-.3);
 
 add(new THREE.Mesh(new THREE.TorusGeometry(.12,.002,4,48,Math.PI),mAmb),0,.67,-.02,-Math.PI/2);
@@ -526,11 +526,11 @@ let AU=null;function audioInit(){if(AU||demo)return;try{const ac=new (window.Aud
  o1.type='sawtooth';o2.type='square';o3.type='triangle';f.type='lowpass';f.Q.value=4;g.gain.value=0;[o1,o2,o3].forEach(o=>{o.connect(f);o.start();});f.connect(g);g.connect(ac.destination);
  const nb=ac.createBuffer(1,ac.sampleRate,ac.sampleRate),nd=nb.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;const ns=ac.createBufferSource();ns.buffer=nb;ns.loop=true;const nf=ac.createBiquadFilter();nf.type='bandpass';nf.frequency.value=900;nf.Q.value=.8;const ng=ac.createGain();ng.gain.value=0;ns.connect(nf);nf.connect(ng);ng.connect(ac.destination);ns.start();
  AU={ac,o1,o2,o3,f,g,ng};}catch(e){}}
-function audioUpd(){if(!AU)return;const t=AU.ac.currentTime,fq=st.rpm/60*3;AU.o1.frequency.setTargetAtTime(fq,t,.03);AU.o2.frequency.setTargetAtTime(fq*.5,t,.03);AU.o3.frequency.setTargetAtTime(fq*2.01,t,.03);
- AU.f.frequency.setTargetAtTime(300+st.thr*1800+st.rpm*.15,t,.05);AU.g.gain.setTargetAtTime(st.rpm>0?.05+st.thr*.09:0,t,.05);AU.ng.gain.setTargetAtTime(Math.min(.3,(st.slip||0)*.3),t,.04);AU.ng.playbackRate&&0;}
+function audioUpd(){if(!AU)return;const t=AU.ac.currentTime,fq=st.rpm/60*4*(1+(Math.random()-.5)*.012*(1-st.thr));AU.o1.frequency.setTargetAtTime(fq,t,.03);AU.o2.frequency.setTargetAtTime(fq*.5,t,.03);AU.o3.frequency.setTargetAtTime(fq*.25,t,.03);/* V8: 4 firings/rev-pair, cross-plane burble via sub-harmonics + jitter */
+ AU.f.frequency.setTargetAtTime(180+st.thr*1300+st.rpm*.12,t,.05);AU.g.gain.setTargetAtTime(st.rpm>0?.06+st.thr*.12:0,t,.05);AU.ng.gain.setTargetAtTime(Math.min(.3,(st.slip||0)*.3),t,.04);AU.ng.playbackRate&&0;}
 // ---------- arcade-sim driving ----------
-const DYNO=Q.includes('dyno');const GR=[5.0,3.2,2.143,1.72,1.314,1.0,.822,.64],FD=3.15,RW=.36,MASS=2200,WB=2.97;// BMW X5 xDrive40i: 280 kW, 540 Nm, ZF 8HP
-function torque(rpm){if(rpm>6600)return 0;if(rpm<1850)return 380+160*Math.max(0,rpm-1000)/850;return Math.min(540,280000/(rpm*Math.PI/30));}
+const DYNO=Q.includes('dyno');const GR=[5.0,3.2,2.143,1.72,1.314,1.0,.822,.64],FD=3.15,RW=.36,MASS=2420,WB=2.97;// BMW X5 M60i: 4.4 V8 390 kW (530 hp), 750 Nm, ZF 8HP, Vmax 285 (M package)
+function torque(rpm){if(rpm>6600)return 0;if(rpm<1800)return 520+230*Math.max(0,rpm-1000)/800;return Math.min(750,390000/(rpm*Math.PI/30));}
 function step(dt){
  let thrIn=(K.KeyW||K.ArrowUp)?1:T.gas,brkIn=(K.KeyS||K.ArrowDown)?1:T.brk,stIn=(K.KeyA||K.ArrowLeft?1:0)-((K.KeyD&&!K.ShiftLeft&&!K.ShiftRight)||K.ArrowRight?1:0)-T.steer,hb=(K.Space||T.hb)?1:0;
  if(HBT){dT+=dt;const t=dT;hb=t<1.5?1:0;thrIn=(t>.5&&t<1.5)||(t>3.5&&t<4.5)||t>6.5?1:0;brkIn=(t>4.5&&t<5.5)?1:0;if(t>2&&t<2.05)st.epb=true;if(t>5.6&&t<5.65)st.autohold=true;if(t>5.8&&t<5.85){st.epb=true;}if(t>6.2&&t<6.25)st.epb=false;}else if(DRIFT){const d=driftScript(dt);thrIn=d.thr;brkIn=d.br;stIn=d.steer;hb=d.hb;if(st.mode!=2)setMode(2);}else if(demo){thrIn=Q.includes('full')?1:Q.includes('cruise')?(st.v<36?.5:.3):(st.v<16?1:.35);brkIn=0;stIn=0;hb=0;}
@@ -548,7 +548,7 @@ function step(dt){
  const sr=Math.abs(stIn)>Math.abs(st.steer)?MODE.st:6;st.steer+=(stIn-st.steer)*Math.min(1,dt*sr);
  st.road=DYNO||onRoad(st.x,st.z);
  // gearbox
- const sp=Math.abs(vf);if(st.rev){st.g=0;}else{const rpmG=sp/RW*GR[st.g]*FD*9.549;const up=Math.min(6500,(1700+Math.pow(st.thr,1.5)*4700)*MODE.up),dn=1050+Math.pow(st.thr,2)*3300;if(rpmG>up&&st.g<7&&st.shift<=0){st.g++;st.shift=.15;}else if(st.g>0&&rpmG<dn&&st.shift<=0&&sp/RW*GR[st.g-1]*FD*9.549<6200){st.g--;st.shift=.12;}}
+ const sp=Math.abs(vf);if(st.rev){st.g=0;}else{const rpmG=sp/RW*GR[st.g]*FD*9.549;const up=Math.min(6500,(1700+Math.pow(st.thr,1.5)*4700)*MODE.up),dn=1050+Math.pow(st.thr,2)*3300;if(rpmG>up&&st.g<7&&st.shift<=0&&!(Math.abs(st.beta||0)>.15&&rpmG<6300)){st.g++;st.shift=.15;}else if(st.g>0&&rpmG<dn&&st.shift<=0&&sp/RW*GR[st.g-1]*FD*9.549<6200){st.g--;st.shift=.12;}}
  const ratio=st.rev?3.5:GR[st.g];let rpm=drv?sp/RW*ratio*FD*9.549:0;rpm=Math.max(rpm,800+st.thr*(drv?(sp<3?2200:0):5200));if(st.launch==1)rpm=3500;if(st.crank>0){st.crank-=dt;rpm=800+Math.sin(Math.max(0,st.crank)/.9*Math.PI)*900;}if(!st.on&&st.crank<=0)rpm=0;st.rpm+=(Math.min(6800,rpm)-st.rpm)*Math.min(1,dt*10);
  st.shift=Math.max(0,st.shift-dt);
  let F=torque(st.rpm)*ratio*FD/RW*st.thr*.85*(st.shift>0?0:1);const Fraw=F*(st.launch==2?1:1);const cap=(st.road?(st.launch==2?.85:.75):.45)*9.81*MASS;if(!st.on)F=0;st.tc=0;let spin=0;if(F>cap){if(st.tcOn){F=cap;st.tc=F>0?1:0;}else{spin=Math.min(1,(F-cap)/cap);F=cap*.92;}}if(st.rev)F=Math.min(F,4000);if(!drv)F=0;
@@ -571,13 +571,13 @@ function step(dt){
   Fyf*=Math.max(.15,Math.sqrt(Math.max(0,1-(Fxf/Ff)**2)));Fyr*=Math.max(.1,Math.sqrt(Math.max(0,1-(Fxr/Fr)**2)));if(sR)Fyr*=1-.4*sR;
   let Mz=0;beta=Math.atan2(v,Math.max(Math.abs(u),1));
   if(st.dscOn&&Math.abs(u)>3&&!hb){const rT=u*Math.tan(delta)/LL,er=r-rT;if(Math.abs(beta)>.07||Math.abs(er)>.2){st.dsc=1;Mz=-(er*4+beta*3)*IZ*DS;Fd*=1-.5*DS;}}
-  if(!hb&&Math.abs(u)>5){const ex=Math.max(0,Math.abs(beta)-.16);if(ex>0){const rT=-Math.sign(beta)*Math.min(.9,9.5/Math.max(u,1));Mz-=IZ*(r-rT*.0)*Math.min(1,ex*5)*4;Mz+=IZ*Math.sign(beta)*ex*6;}}
+  if(!st.dscOn&&u>5&&Math.abs(beta)>(hb?.25:.1)){const rEq=-Math.sign(beta)*mu*GG*.8/Math.max(Math.hypot(u,v),5),kk=6+25*Math.max(0,Math.abs(beta)-.4);Mz-=IZ*(r-rEq)*kk*Math.min(1,(Math.abs(beta)-.1)*6);}
   const drag=.55*u*Math.abs(u),roll=Math.abs(u)>.05?(st.road?260:1400)*Math.sign(u):0,cd=Math.cos(delta),sd=Math.sin(delta);
   const du=(Fxf*cd-Fyf*sd+Fxr-drag-roll)/MASS+v*r,dv=(Fyf*cd+Fxf*sd+Fyr)/MASS-u*r,dr=(AA*(Fyf*cd+Fxf*sd)-BB*Fyr+Mz)/IZ;
   const u0=u;u+=du*hh;v+=dv*hh;r+=dr*hh;if(u0*u<0&&Math.abs(Fd)<50)u=0;if(Math.abs(u)<.08&&Math.abs(Fd)<50&&st.brk+hb>0)u=0;
   if(Math.abs(u)<3){const w=1-Math.abs(u)/3,kin=u*Math.tan(delta)/LL;r=r*(1-w)+kin*w;v*=1-w*.6;}
   ax=du;spinR=Math.max(spinR,sR);const vr=Math.abs(v-BB*r);slipMax=Math.max(slipMax,vr>2.2?Math.min(1,vr/7):0,sR,(lockR||lockF)&&Math.abs(u)>2?.8:0);}
- vf=Math.max(-9,Math.min(250/3.6,u));vl=v;st.r=r;st.spin=spinR;st.slip=st.road?slipMax:slipMax*.5;st.beta=Math.abs(vf)>4?beta:0;
+ vf=Math.max(-9,Math.min(285/3.6,u));vl=v;st.r=r;st.spin=spinR;st.slip=st.road?slipMax:slipMax*.5;st.beta=Math.abs(vf)>4?beta:0;
  if(st.sel==='P'||((st.epb||st.held)&&st.thr<.1&&Math.abs(vf)<1.5)){vf=0;vl=0;st.r=0;}
  st.along+=(ax-st.along)*Math.min(1,dt*4);if(spinR>0)st.rpm=Math.min(6800,st.rpm+spinR*dt*9000);
  st.h+=st.r*dt;const s2=Math.sin(st.h),c2=Math.cos(st.h);
@@ -595,12 +595,12 @@ let TNOW=0;function updAI(dt){TNOW+=dt;updLights(TNOW);AI.forEach(a=>{const L=a.
  ped.forEach((p,i)=>{const L=p.o.c[p.o.c.length-1];p.s+=p.d*p.v*dt;if(p.s>L-1||p.s<1)p.d*=-1;const q=at(p.o.r,p.o.c,p.s,p.side),t=performance.now()/300+i;
   M.makeRotationY(q[2]+(p.d<0?Math.PI:0)).setPosition(q[0],Math.abs(Math.sin(t))*.05,q[1]);pb.setMatrixAt(i,M);ph.setMatrixAt(i,M);pl.setMatrixAt(i,M);});
  pb.instanceMatrix.needsUpdate=ph.instanceMatrix.needsUpdate=pl.instanceMatrix.needsUpdate=true;}
-if(/ff=(\d+)/.test(Q)){const n=+/ff=(\d+)/.exec(Q)[1];for(let i=0;i<n;i++){step(1/60);{const k=st.v*3.6;window.__m=window.__m||{};[100,200,250].forEach(x=>{if(k>=x-.05&&!window.__m[x]){window.__m[x]=(i/60).toFixed(2);console.log('REACH',x,'kmh at',window.__m[x],'s');}});if(i%600==0)console.log('T',(i/60).toFixed(0),'kmh',k.toFixed(1),'g',st.g+1);if((DRIFT||HBT)&&i%30==0)console.log('D t',(i/60).toFixed(1),'kmh',k.toFixed(0),'beta',((st.beta||0)*57.3).toFixed(1),'yaw',st.r.toFixed(2),'slip',(st.slip||0).toFixed(2),'spin',(st.spin||0).toFixed(2),'steer',st.steer.toFixed(2),'rpm',st.rpm|0,'epb',st.epb,'held',st.held,'thr',st.thr.toFixed(2),'sel',st.sel,'on',st.on);}}}
+if(/ff=(\d+)/.test(Q)){const n=+/ff=(\d+)/.exec(Q)[1];for(let i=0;i<n;i++){step(1/60);{const k=st.v*3.6;window.__m=window.__m||{};[100,200,250,280].forEach(x=>{if(k>=x-.05&&!window.__m[x]){window.__m[x]=(i/60).toFixed(2);console.log('REACH',x,'kmh at',window.__m[x],'s');}});if(i%600==0)console.log('T',(i/60).toFixed(0),'kmh',k.toFixed(1),'g',st.g+1);if((DRIFT||HBT)&&i%30==0)console.log('D t',(i/60).toFixed(1),'kmh',k.toFixed(0),'beta',((st.beta||0)*57.3).toFixed(1),'yaw',st.r.toFixed(2),'slip',(st.slip||0).toFixed(2),'spin',(st.spin||0).toFixed(2),'steer',st.steer.toFixed(2),'rpm',st.rpm|0,'epb',st.epb,'held',st.held,'thr',st.thr.toFixed(2),'sel',st.sel,'on',st.on);}}}
 let LK=null;{const m=/lm=([^&]+)/.exec(Q);if(m){const n=decodeURIComponent(m[1]),b=C.b.find(b=>b.n&&b.n.includes(n));if(b){let cx=0,cz=0;b.p.forEach(q=>{cx+=q[0];cz+=q[1];});cx/=b.p.length;cz/=b.p.length;const ang=+(/ang=([-\d.]+)/.exec(Q)||[0,0.6])[1];LK=[cx,cz,Math.cos(ang),Math.sin(ang)];}}}
 let last=performance.now(),fr=0;
 function frame(t){const dt=Math.min(0.05,(t-last)/1000)||0.016;last=t;step(dt);updAI(dt);
  car.position.set(st.x,0,st.z);car.rotation.y=st.h;swr.rotation.z=st.steer*2.4;gasP.rotation.x=-st.thr*.35;brkP.position.z=.03-st.brk*.05;
- const vib=st.rpm>4500?(Math.random()-.5)*.0006*(st.rpm-4500)/2000:0;if(lookBack){cam.position.set(0,1.32,-.15);}else cam.position.set(-.37+st.alat*.0025,1.29+vib-Math.max(0,-st.along)*.002,.05+st.along*.004);lookTick(dt);cam.rotation.set(lookBack?-.05:-.15+st.along*.0045+lookP,lookBack?Math.PI:lookY+(st.beta||0)*.4,-st.alat*.004);
+ const vib=st.rpm>4500?(Math.random()-.5)*.0006*(st.rpm-4500)/2000:0;if(lookBack){cam.position.set(0,1.32,-.15);}else {st.gs=(st.gs||0)+((st.along||0)-(st.gs||0))*Math.min(1,dt*5);const ga=Math.max(-10,Math.min(9,st.gs)),sh=st.thr>.8&&ga>2?(Math.random()-.5)*.0025*ga/8:0;cam.position.set(-.37+st.alat*.0025+sh,1.29+vib-Math.abs(ga)*.0045+sh,.05+ga*.011);const fv=(innerWidth<innerHeight?95:68)+Math.max(0,ga)*.45;if(Math.abs(cam.fov-fv)>.05){cam.fov=fv;cam.updateProjectionMatrix();}}lookTick(dt);cam.rotation.set(lookBack?-.05:-.15+(st.gs||0)*.006+lookP,lookBack?Math.PI:lookY+(st.beta||0)*.4,-st.alat*.004);
  sun.position.set(st.x+80,150,st.z+60);sun.target.position.set(st.x,0,st.z);
  if(fr++%3==0)drawDisp(st.v,st.steer);
  if(LK){topCam.position.set(LK[0]+LK[2]*45,30,LK[1]+LK[3]*45);topCam.lookAt(LK[0],6,LK[1]);R.render(S,topCam);}else if(topv){topCam.position.set(st.x-200,300,st.z+250);topCam.lookAt(st.x,0,st.z);R.render(S,topCam);}else{featTick(dt);uiTick();bodyTick(dt);fxTick(dt);if(chase)R.render(S,chaseCam);else{renderMirrors();renderRearCam();R.render(S,cam);}}
@@ -711,7 +711,7 @@ function fxTick(dt){const s=Math.sin(st.h),c=Math.cos(st.h),sl=st.slip||0;const 
   if(!front&&sl>.35){smAcc+=dt*sl*45;while(smAcc>1){smAcc--;const p=SM[smI++%SM.length];p.life=1.6;p.s.visible=true;p.s.position.set(px,.3,pz);p.s.scale.set(.6,.6,.6);p.vx=st.vx*.3+(Math.random()-.5);p.vz=st.vz*.3+(Math.random()-.5);}}});
  SM.forEach(p=>{if(p.life<=0)return;p.life-=dt;const t=1-p.life/1.6;p.s.position.x+=p.vx*dt;p.s.position.z+=p.vz*dt;p.s.position.y+=dt*.8;p.vx*=.96;p.vz*=.96;const sc=.6+t*4.5;p.s.scale.set(sc,sc,sc);p.s.material.opacity=.55*(1-t);if(p.life<=0)p.s.visible=false;});}
 // scripted drift test (?drift): Sport+, accelerate, handbrake flick, hold drift with throttle + countersteer
-function driftScript(dt){dT+=dt;let thr=0,br=0,steer=0,hb=0;if(dT<4){thr=1;}else if(dT<4.45){steer=.85;hb=dT<4.35?1:0;thr=.3;}else if(dT<10){thr=Math.abs(st.beta)>.5?.5:1;steer=Math.max(-1,Math.min(1,st.beta*1.1+(Math.abs(st.beta)<.25?.35:0)));}else{thr=0;br=.5;}return{thr,br,steer,hb};}
+function driftScript(dt){dT+=dt;let thr=0,br=0,steer=0,hb=0;if(dT<4){thr=1;}else if(dT<4.45){steer=.85;hb=dT<4.35?1:0;thr=.3;}else if(dT<14){const ab=Math.abs(st.beta);thr=Math.max(.2,Math.min(1,.6+(.4-ab)*3));steer=Math.max(-1,Math.min(1,st.beta*1.0+(ab<.15?.4*Math.sign(-st.beta||1):0)));}else{thr=0;br=.5;}return{thr,br,steer,hb};}
 function fit(){const w=window.innerWidth,h=window.innerHeight;if(!w||!h)return;cam.fov=w<h?95:68;[cam,topCam,chaseCam].forEach(c=>{c.aspect=w/h;c.updateProjectionMatrix();});R.setPixelRatio(Math.min(devicePixelRatio||1,2));R.setSize(w,h,false);}
 function refit(){fit();setTimeout(fit,150);setTimeout(fit,500);}
 addEventListener('resize',refit);addEventListener('orientationchange',refit);if(window.visualViewport)visualViewport.addEventListener('resize',refit);document.addEventListener('fullscreenchange',refit);document.addEventListener('webkitfullscreenchange',refit);
