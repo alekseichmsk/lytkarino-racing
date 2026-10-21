@@ -350,7 +350,11 @@ function drawDisp(v,steer){const g=dg,kmh=Math.abs(v)*3.6,gear=st.sel==='D'?'D'+
   g.fillStyle='#8fa4b8';g.font='16px sans-serif';g.textAlign='center';g.fillText(label,cx,232);}
  arc(110,kmh,260,'#4fb4ff','км/ч');arc(390,rpm,7000,rpm>5500?'#ff5040':'#ff9a30','×1000 об/мин');
  g.textAlign='center';g.fillStyle='#fff';g.font='bold 92px sans-serif';g.fillText(Math.round(kmh),250,150);g.font='15px sans-serif';g.fillStyle='#8fa4b8';g.fillText('км/ч',250,172);g.fillStyle='#fff';g.font='bold 22px sans-serif';g.fillText((rpm/1000).toFixed(1),390,205);
- g.fillStyle=st.sel==='R'?'#ff6040':st.sel==='P'?'#ffffff':'#4fb4ff';g.font='bold 72px sans-serif';g.fillText(gear,390,170);g.fillStyle='#8fa4b8';g.font='15px sans-serif';g.fillText('ЛЫТКАРИНО  '+new Date().toTimeString().slice(0,5),250,40);const MN=['COMFORT','SPORT','SPORT+'][st.mode];g.fillStyle=['#4fb4ff','#ff9a30','#ff4030'][st.mode];g.font='bold 18px sans-serif';g.fillText(MN,250,205);
+ g.fillStyle=st.sel==='R'?'#ff6040':st.sel==='P'?'#ffffff':'#4fb4ff';g.font='bold 72px sans-serif';g.fillText(gear,390,170);g.fillStyle='#8fa4b8';g.font='15px sans-serif';g.fillText('ЛЫТКАРИНО  '+new Date().toTimeString().slice(0,5),250,40);if(!st.on&&st.crank<=0){g.fillStyle='rgba(0,0,0,.75)';g.fillRect(0,0,500,256);g.fillStyle='#ff6050';g.font='bold 28px sans-serif';g.textAlign='center';g.fillText('START ENGINE ⏻',250,130);}
+ const blinkOn=indOn;g.fillStyle='#30e060';g.font='bold 30px sans-serif';if((st.ind<0||st.haz)&&blinkOn)g.fillText('◀',30,40);if((st.ind>0||st.haz)&&blinkOn)g.fillText('▶',470,40);
+ g.font='bold 14px sans-serif';if(st.epb){g.fillStyle='#ff3030';g.fillText('(P)',60,240);}if(st.held){g.fillStyle='#30e060';g.fillText('(A)',95,240);}if(st.cruise){g.fillStyle='#30e060';g.fillText('⏲ '+Math.round(st.cruise*3.6),420,240);}if(st.launch){g.fillStyle='#ff4030';g.fillText('LAUNCH',250,60);}
+ if(st.pdc<2.5){g.fillStyle=st.pdc<.6?'#ff3030':st.pdc<1.4?'#ffb020':'#30e060';g.fillRect(200,226,100*(1-st.pdc/2.5),6);}
+ const MN=['COMFORT','SPORT','SPORT+'][st.mode];g.fillStyle=['#4fb4ff','#ff9a30','#ff4030'][st.mode];g.font='bold 18px sans-serif';g.fillText(MN,250,205);
  const lamp=(t,x,on,c)=>{g.font='bold 15px sans-serif';g.fillStyle=on?c:'#1c2430';g.fillText(t,x,240);};const bl=(performance.now()/120|0)%2;
  lamp('ABS',190,st.abs&&bl,'#ffb020');lamp(st.mode==2?'DSC OFF':'DSC',250,st.mode==2||((st.dsc||st.tc)&&bl),'#ffb020');lamp('TC',310,st.tc&&bl,'#ffb020');if(!st.road){g.fillStyle='#8fa4b8';g.font='13px sans-serif';g.fillText('грунт',250,188);}
  g.fillStyle='#000';g.fillRect(500,0,12,256);
@@ -362,7 +366,7 @@ function drawDisp(v,steer){const g=dg,kmh=Math.abs(v)*3.6,gear=st.sel==='D'?'D'+
 // ---------- spawn ----------
 let best=null,bl=1e9;major.forEach(r=>{for(let i=0;i<r.p.length-1;i++){const a=r.p[i],b=r.p[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]),D=Math.hypot(a[0],a[1]);if(L>60&&D<bl){bl=D;best=[a,b];}}});
 const h0=Math.atan2(best[1][0]-best[0][0],best[1][1]-best[0][1]),off=1.6;
-const st={x:best[0][0]+Math.sin(h0)*8-Math.cos(h0)*off,z:best[0][1]+Math.cos(h0)*8+Math.sin(h0)*off,h:h0,vx:0,vz:0,r:0,v:0,vl:0,steer:0,thr:0,brk:0,g:0,rpm:800,rev:false,shift:0,along:0,alat:0,road:true,hb:0,sel:'D',mode:1,abs:0,tc:0,dsc:0};
+const DEMO0=demo||Q.includes('on');const st={x:best[0][0]+Math.sin(h0)*8-Math.cos(h0)*off,z:best[0][1]+Math.cos(h0)*8+Math.sin(h0)*off,h:h0,vx:0,vz:0,r:0,v:0,vl:0,steer:0,thr:0,brk:0,g:0,rpm:800,rev:false,shift:0,along:0,alat:0,road:true,hb:0,sel:'D',mode:1,abs:0,tc:0,dsc:0,on:DEMO0,crank:0,ind:0,haz:false,cruise:0,hud:false,autohold:true,held:false,epb:false,launch:0,pdc:9};
 const start=JSON.parse(JSON.stringify(st));
 // road lookup grid (for grip)
 const RG={};drive.concat(C.r.filter(r=>r.w>=3&&r.w<4)).forEach(r=>{for(let i=0;i<r.p.length-1;i++){const a=r.p[i],b=r.p[i+1];const seg=[a,b,r.w/2+.8];const xs=[a[0],b[0]],zs=[a[1],b[1]];
@@ -408,7 +412,7 @@ let AU=null;function audioInit(){if(AU||demo)return;try{const ac=new (window.Aud
  const nb=ac.createBuffer(1,ac.sampleRate,ac.sampleRate),nd=nb.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;const ns=ac.createBufferSource();ns.buffer=nb;ns.loop=true;const nf=ac.createBiquadFilter();nf.type='bandpass';nf.frequency.value=900;nf.Q.value=.8;const ng=ac.createGain();ng.gain.value=0;ns.connect(nf);nf.connect(ng);ng.connect(ac.destination);ns.start();
  AU={ac,o1,o2,o3,f,g,ng};}catch(e){}}
 function audioUpd(){if(!AU)return;const t=AU.ac.currentTime,fq=st.rpm/60*3;AU.o1.frequency.setTargetAtTime(fq,t,.03);AU.o2.frequency.setTargetAtTime(fq*.5,t,.03);AU.o3.frequency.setTargetAtTime(fq*2.01,t,.03);
- AU.f.frequency.setTargetAtTime(300+st.thr*1800+st.rpm*.15,t,.05);AU.g.gain.setTargetAtTime(.05+st.thr*.09,t,.05);AU.ng.gain.setTargetAtTime(Math.min(.25,Math.max(0,Math.abs(st.vl)-2.5)*.04),t,.05);}
+ AU.f.frequency.setTargetAtTime(300+st.thr*1800+st.rpm*.15,t,.05);AU.g.gain.setTargetAtTime(st.rpm>0?.05+st.thr*.09:0,t,.05);AU.ng.gain.setTargetAtTime(Math.min(.25,Math.max(0,Math.abs(st.vl)-2.5)*.04),t,.05);}
 // ---------- arcade-sim driving ----------
 const DYNO=Q.includes('dyno');const GR=[5.0,3.2,2.143,1.72,1.314,1.0,.822,.64],FD=3.15,RW=.36,MASS=2200,WB=2.97;// BMW X5 xDrive40i: 280 kW, 540 Nm, ZF 8HP
 function torque(rpm){if(rpm>6600)return 0;if(rpm<1850)return 380+160*Math.max(0,rpm-1000)/850;return Math.min(540,280000/(rpm*Math.PI/30));}
@@ -418,20 +422,24 @@ function step(dt){
  const s=Math.sin(st.h),c=Math.cos(st.h);let vf=st.vx*s+st.vz*c,vl=st.vx*c-st.vz*s;
  // reverse logic
  swTick(dt);st.rev=st.sel==='R';const drv=st.sel==='D'||st.sel==='R';
- const wantT=thrIn,wantB=brkIn;
+ if(st.cruise){if(brkIn>.1)st.cruise=0;else thrIn=Math.max(thrIn,Math.max(0,Math.min(1,(st.cruise-st.v)*.35+.22)));}
+ if(st.mode==2&&st.on&&st.sel==='D'&&Math.abs(st.v)<.5&&brkIn>.5&&thrIn>.8)st.launch=1;else if(st.launch==1&&brkIn<.2&&thrIn>.8)st.launch=2;else if(st.launch==1)st.launch=0;if(st.launch==2&&(thrIn<.5||st.v>28))st.launch=0;
+ if(st.autohold&&Math.abs(st.v)<.3&&brkIn>.3&&st.sel!=='P')st.held=true;if(thrIn>.1){st.held=false;if(st.sel==='D'||st.sel==='R')st.epb=false;}
+ if(!st.on)thrIn=0;
+ const wantT=thrIn,wantB=(st.launch==1)?1:brkIn;
  const MODE=[{thr:3,up:.85,st:3.0,dsc:1},{thr:6,up:1,st:3.5,dsc:.6},{thr:10,up:1.08,st:4.2,dsc:0}][st.mode];st.thr+=(wantT-st.thr)*Math.min(1,dt*MODE.thr);st.brk+=(wantB-st.brk)*Math.min(1,dt*8);
  const sr=Math.abs(stIn)>Math.abs(st.steer)?MODE.st:6;st.steer+=(stIn-st.steer)*Math.min(1,dt*sr);
  st.road=DYNO||onRoad(st.x,st.z);
  // gearbox
  const sp=Math.abs(vf);if(st.rev){st.g=0;}else{const rpmG=sp/RW*GR[st.g]*FD*9.549;const up=Math.min(6500,(1700+Math.pow(st.thr,1.5)*4700)*MODE.up),dn=1050+Math.pow(st.thr,2)*3300;if(rpmG>up&&st.g<7&&st.shift<=0){st.g++;st.shift=.15;}else if(st.g>0&&rpmG<dn&&st.shift<=0&&sp/RW*GR[st.g-1]*FD*9.549<6200){st.g--;st.shift=.12;}}
- const ratio=st.rev?3.5:GR[st.g];let rpm=drv?sp/RW*ratio*FD*9.549:0;rpm=Math.max(rpm,800+st.thr*(drv?(sp<3?2200:0):5200));st.rpm+=(Math.min(6800,rpm)-st.rpm)*Math.min(1,dt*10);
+ const ratio=st.rev?3.5:GR[st.g];let rpm=drv?sp/RW*ratio*FD*9.549:0;rpm=Math.max(rpm,800+st.thr*(drv?(sp<3?2200:0):5200));if(st.launch==1)rpm=3500;if(st.crank>0){st.crank-=dt;rpm=800+Math.sin(Math.max(0,st.crank)/.9*Math.PI)*900;}if(!st.on&&st.crank<=0)rpm=0;st.rpm+=(Math.min(6800,rpm)-st.rpm)*Math.min(1,dt*10);
  st.shift=Math.max(0,st.shift-dt);
- let F=torque(st.rpm)*ratio*FD/RW*st.thr*.85*(st.shift>0?0:1);const cap=(st.road?.75:.45)*9.81*MASS;st.tc=0;let spin=0;if(F>cap){if(MODE.dsc>0){F=cap;st.tc=F>0?1:0;}else{spin=Math.min(1,(F-cap)/cap);F=cap*.92;}}if(st.rev)F=Math.min(F,4000);if(!drv)F=0;
+ let F=torque(st.rpm)*ratio*FD/RW*st.thr*.85*(st.shift>0?0:1);const cap=(st.road?(st.launch==2?.85:.75):.45)*9.81*MASS;if(!st.on)F=0;st.tc=0;let spin=0;if(F>cap){if(MODE.dsc>0){F=cap;st.tc=F>0?1:0;}else{spin=Math.min(1,(F-cap)/cap);F=cap*.92;}}if(st.rev)F=Math.min(F,4000);if(!drv)F=0;
  const roll=(st.road?260:1400)+(st.road?0:.6*sp*sp),drag=.55*vf*vf;
  let a=(st.rev?-F:F)/MASS;a-=Math.sign(vf)*(roll+drag)/MASS;
  let brkRaw=st.brk*21000;const bcap=(st.road?1.0:.55)*9.81*MASS;st.abs=brkRaw>bcap&&sp>2?1:0;if(st.abs)brkRaw=bcap*(.9+Math.random()*.1);const brkF=(brkRaw+hb*6000)/MASS;
  const vfOld=vf;vf+=a*dt;if(Math.abs(vf)>.05){const nv=vf-Math.sign(vf)*brkF*dt;vf=Math.sign(nv)!==Math.sign(vf)?0:nv;}else if(!st.thr)vf=0;
- vf=Math.max(-9,Math.min(250/3.6,vf));if(st.sel==='P'){vf=0;st.vx=st.vz=0;}
+ vf=Math.max(-9,Math.min(250/3.6,vf));if(st.sel==='P'||((st.epb||st.held)&&st.thr<.1&&Math.abs(vf)<1.5)){vf=0;st.vx=st.vz=0;}
  st.along+=(((vf-vfOld)/dt)-st.along)*Math.min(1,dt*4);
  // steering & yaw (speed-dependent, weight transfer, grip)
  const maxA=.6/(1+Math.abs(vf)*.06),delta=st.steer*maxA,wt=Math.max(.75,Math.min(1.3,1-st.along*.035));
@@ -464,7 +472,7 @@ function frame(t){const dt=Math.min(0.05,(t-last)/1000)||0.016;last=t;step(dt);u
  const vib=st.rpm>4500?(Math.random()-.5)*.0006*(st.rpm-4500)/2000:0;cam.position.set(-.37+st.alat*.0025,1.29+vib-Math.max(0,-st.along)*.002,.05+st.along*.004);lookTick(dt);cam.rotation.set(lookBack?-.05:-.15+st.along*.0045+lookP,lookBack?Math.PI:lookY,-st.alat*.004);
  sun.position.set(st.x+80,150,st.z+60);sun.target.position.set(st.x,0,st.z);
  if(fr++%3==0)drawDisp(st.v,st.steer);
- if(LK){topCam.position.set(LK[0]+LK[2]*45,30,LK[1]+LK[3]*45);topCam.lookAt(LK[0],6,LK[1]);R.render(S,topCam);}else if(topv){topCam.position.set(st.x-200,300,st.z+250);topCam.lookAt(st.x,0,st.z);R.render(S,topCam);}else{renderMirrors();R.render(S,cam);}
+ if(LK){topCam.position.set(LK[0]+LK[2]*45,30,LK[1]+LK[3]*45);topCam.lookAt(LK[0],6,LK[1]);R.render(S,topCam);}else if(topv){topCam.position.set(st.x-200,300,st.z+250);topCam.lookAt(st.x,0,st.z);R.render(S,topCam);}else{featTick(dt);uiTick();renderMirrors();renderRearCam();R.render(S,cam);}
  requestAnimationFrame(frame);}
 
 // ---------- headlights / time of day / look back ----------
@@ -509,6 +517,42 @@ mirror(.2,.05,[0,1.42,-.452],0,[0,1.4,-.3],Math.PI,28);
 mirror(.2,.1,[-1.0,1.0,-.668],-.25,[-1.06,1.0,-.75],Math.PI-.3,40);
 mirror(.2,.1,[1.0,1.0,-.668],.25,[1.06,1.0,-.75],Math.PI+.3,40);
 let mfr=0;function renderMirrors(){if(mobile&&(mfr++%2))return;MIR.forEach(o=>{R.setRenderTarget(o.rt);R.render(S,o.c);});R.setRenderTarget(null);}
+// ---------- BMW features: Start/Stop, indicators, cruise, PDC + rear camera, HUD, EPB/Auto Hold, Launch, ambient ----------
+function blip(f,d,v){if(!AU)return;const o=AU.ac.createOscillator(),g=AU.ac.createGain();o.type='square';o.frequency.value=f;g.gain.value=v||.05;o.connect(g);g.connect(AU.ac.destination);const t=AU.ac.currentTime;g.gain.setTargetAtTime(0,t+d*.6,d*.2);o.start(t);o.stop(t+d+.05);}
+function engineToggle(){if(st.on){st.on=false;st.cruise=0;return;}if(Math.abs(st.v)>1)return;st.on=true;st.crank=.9;blip(90,.5,.06);setTimeout(()=>blip(140,.25,.05),250);}
+function ind(d){if(d==='h'){st.haz=!st.haz;return;}st.ind=st.ind===d?0:d;st.indArm=0;}
+function cruise(){if(st.cruise)st.cruise=0;else if(st.on&&st.v>8)st.cruise=st.v;}
+const AMBC=[0xff9248,0x6fc8ff,0xff3040,0xa060ff,0x40e080,0xffffff];let ambI=0;function ambient(){ambI=(ambI+1)%AMBC.length;mAmb.color.setHex(AMBC[ambI]);ambL.color.setHex(AMBC[ambI]);}
+// HUD on windshield
+const hudC=document.createElement('canvas');hudC.width=256;hudC.height=128;const hudG=hudC.getContext('2d'),hudT=new THREE.CanvasTexture(hudC);
+const hudM=new THREE.Mesh(new THREE.PlaneGeometry(.3,.15),new THREE.MeshBasicMaterial({map:hudT,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));hudM.position.set(-.37,1.16,-.92);hudM.rotation.x=.08;hudM.scale.set(.8,.8,1);cab.add(hudM);hudM.visible=false;
+function drawHud(){const g=hudG;g.clearRect(0,0,256,128);g.fillStyle='rgba(120,230,255,.95)';g.textAlign='center';g.font='bold 54px sans-serif';g.fillText(Math.round(Math.abs(st.v)*3.6),90,70);g.font='16px sans-serif';g.fillText('км/ч',90,92);
+ g.font='bold 30px sans-serif';g.fillText(st.sel==='D'?'D'+(st.g+1):st.sel,190,62);if(st.cruise){g.font='14px sans-serif';g.fillText('⏲ '+Math.round(st.cruise*3.6),190,92);}hudT.needsUpdate=true;}
+// rear camera (shown over centre screen in R)
+const rcRT=new THREE.WebGLRenderTarget(256,144),rcCam=new THREE.PerspectiveCamera(70,16/9,.1,200);rcCam.position.set(0,1.0,2.45);rcCam.rotation.set(-.35,Math.PI,0);car.add(rcCam);
+const rcOv=new THREE.CanvasTexture(cv(256,144,(g)=>{g.strokeStyle='rgba(255,220,0,.9)';g.lineWidth=3;g.beginPath();g.moveTo(60,144);g.lineTo(100,60);g.moveTo(196,144);g.lineTo(156,60);g.stroke();g.strokeStyle='rgba(255,60,40,.9)';g.beginPath();g.moveTo(52,128);g.lineTo(204,128);g.stroke();}));
+const rcG=new THREE.Group();rcG.position.set(.09,1.045,-.733);rcG.rotation.x=-.16;cab.add(rcG);
+const rcScr=new THREE.Mesh(new THREE.PlaneGeometry(.38,.19),new THREE.MeshBasicMaterial({map:rcRT.texture}));rcScr.scale.x=-1;rcScr.material.side=THREE.DoubleSide;rcG.add(rcScr);
+const rcLn=new THREE.Mesh(new THREE.PlaneGeometry(.38,.19),new THREE.MeshBasicMaterial({map:rcOv,transparent:true}));rcLn.position.z=.001;rcG.add(rcLn);rcG.visible=false;
+function pdcDist(){const s=Math.sin(st.h),c=Math.cos(st.h);let best=9;const dirs=st.sel==='R'?-1:1;for(let d=0;d<=3;d+=.25)for(const ax of[-.8,0,.8]){const bz=dirs*(2.4+d),px=st.x+ax*c+bz*s,pz=st.z-ax*s+bz*c;if(hit(px,pz)||AI.some(o=>Math.hypot(o.g.position.x-px,o.g.position.z-pz)<1.6)){best=Math.min(best,d);}}return best;}
+let pdcT=0,indT=0,indOn=false;
+function featTick(dt){indT+=dt;if(indT>.38){indT=0;indOn=!indOn;if(st.ind||st.haz)blip(indOn?1800:1200,.03,.04);}
+ if(st.ind&&Math.abs(st.steer)>.5)st.indArm=1;if(st.ind&&st.indArm&&Math.abs(st.steer)<.1)st.ind=0;
+ st.pdc=9;if(st.on&&(st.sel==='R'||(st.sel==='D'&&Math.abs(st.v)<3))){st.pdc=pdcDist();if(st.pdc<2.5){pdcT-=dt;if(pdcT<=0){blip(2400,.06,.05);pdcT=st.pdc<.4?.07:.1+st.pdc*.25;}}}
+ rcG.visible=st.sel==='R'&&st.on;hudM.visible=!!st.hud&&st.on;if(st.hud&&fr%3==0)drawHud();}
+function renderRearCam(){if(rcG.visible){R.setRenderTarget(rcRT);R.render(S,rcCam);R.setRenderTarget(null);}}
+// small popup menu
+{const ui=document.getElementById('ui');const mk=(id,t,ti)=>{const b=document.createElement('b');b.id=id;b.textContent=t;b.title=ti;return b;};
+ const pw=mk('bPow','⏻','Start/Stop (Enter)');ui.insertBefore(pw,ui.firstChild);const mn=mk('bMenu','≡','Функции BMW');ui.insertBefore(mn,pw.nextSibling);
+ const pop=document.createElement('div');pop.id='pop';document.body.appendChild(pop);
+ const items=[['◀',()=>ind(-1),'Поворотник (Z)'],['▶',()=>ind(1),'Поворотник (X)'],['⚠',()=>ind('h'),'Аварийка (H)'],['⏲',cruise,'Круиз (C)'],['HUD',()=>st.hud=!st.hud,'Проекция (U)'],['Ⓐ',()=>st.autohold=!st.autohold,'Auto Hold (O)'],['Ⓟ',()=>st.epb=!st.epb,'Электроручник (J)'],['🎨',ambient,'Подсветка (K)']];
+ items.forEach(([t,f,ti])=>{const b=document.createElement('b');b.textContent=t;b.title=ti;b.onclick=e=>{e.stopPropagation();f();};b.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();f();},{passive:false});pop.appendChild(b);});
+ const tg=e=>{e&&e.preventDefault();pop.classList.toggle('on');};mn.onclick=tg;mn.addEventListener('touchstart',tg,{passive:false});
+ pw.onclick=()=>{audioInit();engineToggle();};pw.addEventListener('touchstart',e=>{e.preventDefault();audioInit();engineToggle();},{passive:false});
+ addEventListener('keydown',e=>{const c=e.code;if(c=='Enter'){audioInit();engineToggle();}if(c=='KeyZ')ind(-1);if(c=='KeyX')ind(1);if(c=='KeyH')ind('h');if(c=='KeyC')cruise();if(c=='KeyU')st.hud=!st.hud;if(c=='KeyO')st.autohold=!st.autohold;if(c=='KeyJ')st.epb=!st.epb;if(c=='KeyK')ambient();});}
+{const m=/sel=([PRND])/.exec(Q);if(m){st.sel=m[1];updGsel();}if(Q.includes('hud'))st.hud=true;if(Q.includes('ind'))st.ind=1;if(Q.includes('amb'))ambient();}
+setTimeout(()=>{const i=document.getElementById('info');if(i)i.style.opacity='0';},9000);
+function uiTick(){const p=document.getElementById('bPow');if(p){p.style.color=st.on?'#6f6':'#f66';p.style.boxShadow=st.on?'':((performance.now()/500|0)%2?'0 0 8px #f66':'');}}
 function fit(){const w=window.innerWidth,h=window.innerHeight;if(!w||!h)return;cam.fov=w<h?95:68;[cam,topCam].forEach(c=>{c.aspect=w/h;c.updateProjectionMatrix();});R.setPixelRatio(Math.min(devicePixelRatio||1,2));R.setSize(w,h,false);}
 function refit(){fit();setTimeout(fit,150);setTimeout(fit,500);}
 addEventListener('resize',refit);addEventListener('orientationchange',refit);if(window.visualViewport)visualViewport.addEventListener('resize',refit);document.addEventListener('fullscreenchange',refit);document.addEventListener('webkitfullscreenchange',refit);
