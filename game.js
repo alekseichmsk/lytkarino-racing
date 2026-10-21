@@ -440,7 +440,7 @@ function drawDisp(v,steer){const g=dg,kmh=Math.abs(v)*3.6,gear=st.sel==='D'?'D'+
  if(st.pdc<2.5){g.fillStyle=st.pdc<.6?'#ff3030':st.pdc<1.4?'#ffb020':'#30e060';g.fillRect(200,226,100*(1-st.pdc/2.5),6);}
  const MN=['COMFORT','SPORT','SPORT+'][st.mode];g.fillStyle=['#4fb4ff','#ff9a30','#ff4030'][st.mode];g.font='bold 18px sans-serif';g.fillText(MN,250,205);
  const lamp=(t,x,on,c)=>{g.font='bold 15px sans-serif';g.fillStyle=on?c:'#1c2430';g.fillText(t,x,240);};const bl=(performance.now()/120|0)%2;
- lamp('ABS',190,st.abs&&bl,'#ffb020');lamp(st.mode==2?'DSC OFF':'DSC',250,st.mode==2||((st.dsc||st.tc)&&bl),'#ffb020');lamp('TC',310,st.tc&&bl,'#ffb020');if(!st.road){g.fillStyle='#8fa4b8';g.font='13px sans-serif';g.fillText('грунт',250,188);}
+ lamp('ABS',190,st.abs&&bl,'#ffb020');lamp(st.dscOn?'DSC':'DSC OFF',250,!st.dscOn||((st.dsc||st.tc)&&bl),'#ffb020');if(!st.absOn){g.fillStyle='#ffb020';g.font='bold 13px sans-serif';g.fillText('ABS OFF',150,222);}if(!st.tcOn){g.fillStyle='#ffb020';g.font='bold 13px sans-serif';g.fillText('TC OFF',350,222);}lamp('TC',310,st.tc&&bl,'#ffb020');if(!st.road){g.fillStyle='#8fa4b8';g.font='13px sans-serif';g.fillText('грунт',250,188);}
  g.fillStyle='#000';g.fillRect(500,0,12,256);
  // center screen: nav map
  g.save();g.beginPath();g.rect(512,0,512,256);g.clip();g.translate(768,170);g.rotate(Math.PI+st.h);g.scale(1.6,1.6);g.drawImage(mapC,-mapC.width/2-st.x*MS,-mapC.height/2-st.z*MS);g.restore();
@@ -450,7 +450,7 @@ function drawDisp(v,steer){const g=dg,kmh=Math.abs(v)*3.6,gear=st.sel==='D'?'D'+
 // ---------- spawn ----------
 let best=null,bl=1e9;major.forEach(r=>{for(let i=0;i<r.p.length-1;i++){const a=r.p[i],b=r.p[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]),D=Math.hypot(a[0],a[1]);if(L>60&&D<bl){bl=D;best=[a,b];}}});
 const h0=Math.atan2(best[1][0]-best[0][0],best[1][1]-best[0][1]),off=1.6;
-const DEMO0=demo||Q.includes('on');const st={x:best[0][0]+Math.sin(h0)*8-Math.cos(h0)*off,z:best[0][1]+Math.cos(h0)*8+Math.sin(h0)*off,h:h0,vx:0,vz:0,r:0,v:0,vl:0,steer:0,thr:0,brk:0,g:0,rpm:800,rev:false,shift:0,along:0,alat:0,road:true,hb:0,sel:'D',mode:1,abs:0,tc:0,dsc:0,on:DEMO0,crank:0,ind:0,haz:false,cruise:0,hud:false,autohold:true,held:false,epb:false,launch:0,pdc:9};
+const DEMO0=demo||Q.includes('on');const st={x:best[0][0]+Math.sin(h0)*8-Math.cos(h0)*off,z:best[0][1]+Math.cos(h0)*8+Math.sin(h0)*off,h:h0,vx:0,vz:0,r:0,v:0,vl:0,steer:0,thr:0,brk:0,g:0,rpm:800,rev:false,shift:0,along:0,alat:0,road:true,hb:0,sel:'D',mode:1,abs:0,tc:0,dsc:0,absOn:true,dscOn:true,tcOn:true,on:DEMO0,crank:0,ind:0,haz:false,cruise:0,hud:false,autohold:true,held:false,epb:false,launch:0,pdc:9};
 const start=JSON.parse(JSON.stringify(st));
 // road lookup grid (for grip)
 const RG={};drive.concat(C.r.filter(r=>r.w>=3&&r.w<4)).forEach(r=>{for(let i=0;i<r.p.length-1;i++){const a=r.p[i],b=r.p[i+1];const seg=[a,b,r.w/2+.8];const xs=[a[0],b[0]],zs=[a[1],b[1]];
@@ -518,18 +518,18 @@ function step(dt){
  const sp=Math.abs(vf);if(st.rev){st.g=0;}else{const rpmG=sp/RW*GR[st.g]*FD*9.549;const up=Math.min(6500,(1700+Math.pow(st.thr,1.5)*4700)*MODE.up),dn=1050+Math.pow(st.thr,2)*3300;if(rpmG>up&&st.g<7&&st.shift<=0){st.g++;st.shift=.15;}else if(st.g>0&&rpmG<dn&&st.shift<=0&&sp/RW*GR[st.g-1]*FD*9.549<6200){st.g--;st.shift=.12;}}
  const ratio=st.rev?3.5:GR[st.g];let rpm=drv?sp/RW*ratio*FD*9.549:0;rpm=Math.max(rpm,800+st.thr*(drv?(sp<3?2200:0):5200));if(st.launch==1)rpm=3500;if(st.crank>0){st.crank-=dt;rpm=800+Math.sin(Math.max(0,st.crank)/.9*Math.PI)*900;}if(!st.on&&st.crank<=0)rpm=0;st.rpm+=(Math.min(6800,rpm)-st.rpm)*Math.min(1,dt*10);
  st.shift=Math.max(0,st.shift-dt);
- let F=torque(st.rpm)*ratio*FD/RW*st.thr*.85*(st.shift>0?0:1);const cap=(st.road?(st.launch==2?.85:.75):.45)*9.81*MASS;if(!st.on)F=0;st.tc=0;let spin=0;if(F>cap){if(MODE.dsc>0){F=cap;st.tc=F>0?1:0;}else{spin=Math.min(1,(F-cap)/cap);F=cap*.92;}}if(st.rev)F=Math.min(F,4000);if(!drv)F=0;
+ let F=torque(st.rpm)*ratio*FD/RW*st.thr*.85*(st.shift>0?0:1);const cap=(st.road?(st.launch==2?.85:.75):.45)*9.81*MASS;if(!st.on)F=0;st.tc=0;let spin=0;if(F>cap){if(st.tcOn){F=cap;st.tc=F>0?1:0;}else{spin=Math.min(1,(F-cap)/cap);F=cap*.92;}}if(st.rev)F=Math.min(F,4000);if(!drv)F=0;
  const roll=(st.road?260:1400)+(st.road?0:.6*sp*sp),drag=.55*vf*vf;
  let a=(st.rev?-F:F)/MASS;a-=Math.sign(vf)*(roll+drag)/MASS;
- let brkRaw=st.brk*21000;const bcap=(st.road?1.0:.55)*9.81*MASS;st.abs=brkRaw>bcap&&sp>2?1:0;if(st.abs)brkRaw=bcap*(.9+Math.random()*.1);const brkF=(brkRaw+hb*6000)/MASS;
+ let brkRaw=st.brk*21000;const bcap=(st.road?1.0:.55)*9.81*MASS;st.lock=0;if(brkRaw>bcap&&sp>2){if(st.absOn){st.abs=1;brkRaw=bcap*(.9+Math.random()*.1);}else{st.abs=0;st.lock=1;brkRaw=bcap*.8;}}else st.abs=0;const brkF=(brkRaw+hb*6000)/MASS;
  const vfOld=vf;vf+=a*dt;if(Math.abs(vf)>.05){const nv=vf-Math.sign(vf)*brkF*dt;vf=Math.sign(nv)!==Math.sign(vf)?0:nv;}else if(!st.thr)vf=0;
  vf=Math.max(-9,Math.min(250/3.6,vf));if(st.sel==='P'||((st.epb||st.held)&&st.thr<.1&&Math.abs(vf)<1.5)){vf=0;st.vx=st.vz=0;}
  st.along+=(((vf-vfOld)/dt)-st.along)*Math.min(1,dt*4);
  // steering & yaw (speed-dependent, weight transfer, grip)
  const maxA=.6/(1+Math.abs(vf)*.06),delta=st.steer*maxA,wt=Math.max(.75,Math.min(1.3,1-st.along*.035));
- let grip=(st.road?1:.6)*(hb?.22:1)*(1-spin*.6);let target=vf*Math.tan(delta)/WB*wt*(hb?1.7:1);
+ let grip=(st.road?1:.6)*(hb?.22:1)*(1-spin*.6)*(st.lock?.3:1);let target=vf*Math.tan(delta)/WB*wt*(hb?1.7:1);
  st.r+=(target-st.r)*Math.min(1,dt*(2+9*grip));st.h+=st.r*dt;
- st.dsc=0;if(MODE.dsc>0&&Math.abs(vl)>(MODE.dsc>.8?1.2:2.6)&&!hb){st.dsc=1;vl*=Math.exp(-dt*6*MODE.dsc);st.r+=(target-st.r)*Math.min(1,dt*6*MODE.dsc);st.thr*=1-dt*3*MODE.dsc;}
+ st.dsc=0;const DS=Math.max(MODE.dsc,.4);if(st.dscOn&&Math.abs(vl)>(DS>.8?1.2:2.6)&&!hb){st.dsc=1;vl*=Math.exp(-dt*6*DS);st.r+=(target-st.r)*Math.min(1,dt*6*DS);st.thr*=1-dt*3*DS;}
  vl*=Math.exp(-dt*11*grip);
  const s2=Math.sin(st.h),c2=Math.cos(st.h);
  // re-project: velocity keeps world direction partly (gives slide when grip low)
@@ -570,7 +570,7 @@ const TOD=[{n:'☀️',sky:S.background,fog:0xc9dbe6,sun:.85,sc:0xfff2dd,hemi:.7
 function applyTod(){const t=TOD[tod];S.background=t.sky;S.fog.color.setHex(t.fog);sun.intensity=t.sun;sun.color.setHex(t.sc);if(hemi)hemi.intensity=t.hemi;head.material.color.setHex(tod==2?0xffe9b0:0xfff6d8);
  if(tod==2&&!lights)setLights(true);document.getElementById('bTod').textContent=t.n;}
 function setLights(v){lights=v;hl.intensity=v?2.2:0;document.getElementById('bLt').classList.toggle('a',v);}
-function setMode(m){st.mode=m;const b=document.getElementById('bMode');b.style.color=['#8cf','#fb6','#f66'][m];}document.getElementById('bMode').onclick=()=>setMode((st.mode+1)%3);addEventListener('keydown',e=>{if(e.code=='KeyM')setMode((st.mode+1)%3);});setMode(st.mode);{const m=/mode=(\d)/.exec(Q);if(m)setMode(+m[1]);}
+function setMode(m){st.mode=m;st.dscOn=st.tcOn=m<2;const b=document.getElementById('bMode');b.style.color=['#8cf','#fb6','#f66'][m];}document.getElementById('bMode').onclick=()=>setMode((st.mode+1)%3);addEventListener('keydown',e=>{if(e.code=='KeyM')setMode((st.mode+1)%3);});setMode(st.mode);{const m=/mode=(\d)/.exec(Q);if(m)setMode(+m[1]);}
 document.getElementById('bLt').onclick=()=>setLights(!lights);
 document.getElementById('bTod').onclick=()=>{tod=(tod+1)%3;applyTod();};
 {const b=document.getElementById('bBack');const on=e=>{e.preventDefault();lookBack=true;b.classList.add('a');},off=()=>{lookBack=false;b.classList.remove('a');};
@@ -637,6 +637,20 @@ function renderRearCam(){if(rcG.visible){R.setRenderTarget(rcRT);R.render(S,rcCa
 {const m=/sel=([PRND])/.exec(Q);if(m){st.sel=m[1];updGsel();}if(Q.includes('hud'))st.hud=true;if(Q.includes('ind'))st.ind=1;if(Q.includes('amb'))ambient();}
 setTimeout(()=>{const i=document.getElementById('info');if(i)i.style.opacity='0';},9000);
 {const ui=document.getElementById('ui');const b=document.createElement('b');b.id='bCam';b.textContent='🎥';b.title='Вид (V)';ui.insertBefore(b,document.getElementById('fs'));const f=e=>{e&&e.preventDefault();setChase(!chase);};b.onclick=f;b.addEventListener('touchstart',f,{passive:false});addEventListener('keydown',e=>{if(e.code=='KeyV')setChase(!chase);});if(Q.includes('chase'))setChase(true);}
+// ---------- radial menu ----------
+{const ui=document.getElementById('ui');const rb=document.createElement('b');rb.id='bRing';rb.textContent='◎';rb.title='Меню';ui.insertBefore(rb,document.getElementById('bBack'));
+ const ring=document.createElement('div');ring.id='ring';document.body.appendChild(ring);
+ const IT=[['ABS',()=>st.absOn=!st.absOn,()=>st.absOn],['DSC',()=>st.dscOn=!st.dscOn,()=>st.dscOn],['TC',()=>st.tcOn=!st.tcOn,()=>st.tcOn],
+  [()=>['C','S','S+'][st.mode],()=>setMode((st.mode+1)%3),()=>true],['💡',()=>setLights(!lights),()=>lights],['◀',()=>ind(-1),()=>st.ind<0],['▶',()=>ind(1),()=>st.ind>0],['⚠',()=>ind('h'),()=>st.haz],
+  ['⏲',cruise,()=>!!st.cruise],['HUD',()=>st.hud=!st.hud,()=>st.hud],['Ⓟ',()=>st.epb=!st.epb,()=>st.epb],['Ⓐ',()=>st.autohold=!st.autohold,()=>st.autohold],['🎨',ambient,()=>true],
+  [()=>TOD[tod].n,()=>{tod=(tod+1)%3;applyTod();},()=>true],['🎥',()=>setChase(!chase),()=>chase]];
+ const els=IT.map((it,i)=>{const b=document.createElement('b');const a=-Math.PI/2+i/IT.length*Math.PI*2;b.style.left=(95+Math.cos(a)*78-15)+'px';b.style.top=(95+Math.sin(a)*78-15)+'px';
+  const f=e=>{e.preventDefault();e.stopPropagation();it[1]();upd();};b.addEventListener('click',f);b.addEventListener('touchstart',f,{passive:false});ring.appendChild(b);return b;});
+ function upd(){IT.forEach((it,i)=>{els[i].textContent=typeof it[0]==='function'?it[0]():it[0];els[i].classList.toggle('on',!!it[2]());});}
+ const open=v=>{ring.classList.toggle('on',v);if(v)upd();};
+ const tg=e=>{e.preventDefault();e.stopPropagation();open(!ring.classList.contains('on'));};rb.addEventListener('click',tg);rb.addEventListener('touchstart',tg,{passive:false});
+ const close=e=>{if(ring.classList.contains('on')&&!ring.contains(e.target)&&e.target!==rb)open(false);};addEventListener('touchstart',close,{capture:true,passive:true});addEventListener('mousedown',close,true);
+ setInterval(()=>{if(ring.classList.contains('on'))upd();},300);if(Q.includes('ring'))open(true);}
 function uiTick(){const p=document.getElementById('bPow');if(p){p.style.color=st.on?'#6f6':'#f66';p.style.boxShadow=st.on?'':((performance.now()/500|0)%2?'0 0 8px #f66':'');}}
 function fit(){const w=window.innerWidth,h=window.innerHeight;if(!w||!h)return;cam.fov=w<h?95:68;[cam,topCam,chaseCam].forEach(c=>{c.aspect=w/h;c.updateProjectionMatrix();});R.setPixelRatio(Math.min(devicePixelRatio||1,2));R.setSize(w,h,false);}
 function refit(){fit();setTimeout(fit,150);setTimeout(fit,500);}
