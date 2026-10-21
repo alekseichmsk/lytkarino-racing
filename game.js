@@ -335,6 +335,23 @@ const knob=add(new THREE.Mesh(new THREE.IcosahedronGeometry(.035,1),new THREE.Me
 add(rbox(.07,.012,.1,.005,mAlu),0,.672,-.2);
 const pBtn=add(new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,.008,16),new THREE.MeshStandardMaterial({color:0x222222,emissive:0x000000})),0,.745,-.2);const knobHi=new THREE.Mesh(new THREE.TorusGeometry(.055,.004,6,32),new THREE.MeshBasicMaterial({color:0x4fb4ff,transparent:true,opacity:0}));add(knobHi,0,.68,-.2,-Math.PI/2);
 const idr=add(new THREE.Mesh(new THREE.CylinderGeometry(.03,.032,.025,32),mAlu),0,.682,-.02);
+// ---- BMW-style crystal shifter on a raised front console (visible from the driver's seat) ----
+const SX=.06,SY=.86,SZ=-.47;
+add(rbox(.28,.24,.42,.05,mDash),0,.72,-.45);add(rbox(.27,.02,.4,.01,mGloss),0,.845,-.45);add(rbox(.29,.012,.42,.005,mWood),0,.838,-.45);
+add(new THREE.Mesh(new THREE.TorusGeometry(.04,.006,10,32),mAlu),SX,SY-.005,SZ,Math.PI/2);
+{const pts=[];for(let i=0;i<=16;i++){const t=i/16;pts.push(new THREE.Vector2(.018+.02*Math.sin(t*Math.PI*.9)+.006*(1-t),t*.1));}pts.push(new THREE.Vector2(0,.1));
+ knob.geometry.dispose();knob.geometry=new THREE.LatheGeometry(pts,28);knob.scale.set(1,1,1.35);knob.position.set(SX,SY,SZ);knob.rotation.set(-.12,0,0);
+ knob.material=new THREE.MeshPhysicalMaterial({color:0xe8f4ff,roughness:.05,metalness:.1,clearcoat:1,clearcoatRoughness:.02,transparent:true,opacity:.7,emissive:0x2a3a4a,specularIntensity:1});
+ const fac=new THREE.Mesh(new THREE.IcosahedronGeometry(.02,0),new THREE.MeshPhysicalMaterial({color:0xddeeff,transmission:.6,roughness:0,clearcoat:1,transparent:true,opacity:.6}));fac.position.y=.055;fac.scale.set(1,1.6,1.3);knob.add(fac);}
+pBtn.position.set(SX,SY+.103,SZ-.012);pBtn.geometry=new THREE.CylinderGeometry(.011,.011,.006,20);
+pBtn.material=new THREE.MeshStandardMaterial({map:new THREE.CanvasTexture(cv(64,64,(g)=>{g.fillStyle='#1a1a1a';g.fillRect(0,0,64,64);g.fillStyle='#fff';g.font='bold 44px sans-serif';g.textAlign='center';g.fillText('P',32,48);})),roughness:.3});
+knobHi.position.set(SX,SY-.004,SZ);
+// PRND indicator next to lever
+const prC=document.createElement('canvas');prC.width=64;prC.height=192;const prT=new THREE.CanvasTexture(prC);
+const prM=add(new THREE.Mesh(new THREE.PlaneGeometry(.032,.096),new THREE.MeshBasicMaterial({map:prT,transparent:true,side:THREE.DoubleSide,depthTest:true})),SX+.075,SY+.004,SZ,-Math.PI/2+.0);
+function drawPRND(){const g=prC.getContext('2d');g.clearRect(0,0,64,192);g.font='bold 40px sans-serif';g.textAlign='center';['P','R','N','D'].forEach((l,i)=>{g.fillStyle=st.sel===l?'#ffffff':'rgba(140,150,160,.5)';if(st.sel===l){g.shadowColor='#7cf';g.shadowBlur=12;}else g.shadowBlur=0;g.fillText(l,32,42+i*46);});prT.needsUpdate=true;}
+idr.position.set(SX,.85,-.3);
+
 add(new THREE.Mesh(new THREE.TorusGeometry(.12,.002,4,48,Math.PI),mAmb),0,.67,-.02,-Math.PI/2);
 // seats hint
 add(new THREE.Mesh(new THREE.BoxGeometry(1.8,.05,2.2),mSoft),0,.3,-.2);add(new THREE.Mesh(new THREE.BoxGeometry(1.7,.4,.05),mSoft),0,.45,-1.15);
@@ -591,8 +608,8 @@ function knobHit(x,y){v2.set(x/innerWidth*2-1,-(y/innerHeight)*2+1);rc.setFromCa
  el.addEventListener('touchend',e=>{for(const t of e.changedTouches)if(t.identifier===pid){pid=null;mode=null;}});
  el.addEventListener('mousedown',e=>start('m',e.clientX,e.clientY));addEventListener('mousemove',e=>{if(pid==='m')mv(e.clientX,e.clientY);});addEventListener('mouseup',()=>{if(pid==='m'){pid=null;mode=null;}});}
 function lookTick(dt){lookHold-=dt;if(lookHold<0){lookY*=Math.exp(-dt*2.5);lookP*=Math.exp(-dt*2.5);}
- const near=lookP<-.55&&lookY<-.5&&lookY>-1.5;knobHi.material.opacity=near?.9:0;knob.material.emissive=knob.material.emissive||new THREE.Color();knob.material.emissive.setHex(near?0x1a4a80:0);
- knobKick*=Math.exp(-dt*6);knob.position.z=-.2+knobKick*.03;}
+ const near=lookP<-.25&&lookY<0&&lookY>-1.2;knobHi.material.opacity=near?.9:0;knob.material.emissive=knob.material.emissive||new THREE.Color();knob.material.emissive.setHex(near?0x2a6ab0:0x2a3a4a);
+ knobKick*=Math.exp(-dt*6);knob.position.z=SZ+knobKick*.035;knob.rotation.x=-.12+knobKick*.25;pBtn.position.z=SZ-.012+knobKick*.035;if(fr%6==0)drawPRND();}
 
 // ---------- real mirrors (render targets) ----------
 const MIR=[];function mirror(w,h,pos,ry,cpos,cry,fov){const rt=new THREE.WebGLRenderTarget(256,128);const c=new THREE.PerspectiveCamera(fov,w/h,.3,400);c.position.set(...cpos);c.rotation.set(0,cry,0);cab.add(c);
