@@ -59,6 +59,29 @@ for e in d['elements']:
         R.append({'p':pts,'w':W[t['highway']],'n':t.get('name','')})
     elif t.get('natural')=='water' or t.get('waterway')=='riverbank':A.append(pts[:-1])
     elif t.get('leisure') in('park','garden') or t.get('landuse') in('grass','forest','park') or t.get('natural')=='wood':G.append(pts[:-1])
+
+# point features: traffic signals, crossings, bus stops (with road direction)
+segs=[]
+for r in R:
+    for i in range(len(r['p'])-1):segs.append((r['p'][i],r['p'][i+1],r['w']))
+def near(x,z):
+    best=None
+    for a,b,w in segs:
+        dx,dz=b[0]-a[0],b[1]-a[1];L=dx*dx+dz*dz or 1;t=max(0,min(1,((x-a[0])*dx+(z-a[1])*dz)/L));px,pz=a[0]+dx*t,a[1]+dz*t;d=math.hypot(x-px,z-pz)
+        if best is None or d<best[0]:best=(d,math.atan2(dx,dz),w,px,pz)
+    return best
+TS=[];CR=[];BS=[]
+for e in d['elements']:
+    if e['type']!='node':continue
+    t=e.get('tags',{});hw=t.get('highway')
+    if hw not in('traffic_signals','crossing','bus_stop'):continue
+    x,z=p(e['id'])
+    if abs(x)>900 or abs(z)>900:continue
+    nb=near(x,z)
+    if not nb:continue
+    if hw=='traffic_signals':TS.append([x,z,round(nb[1],3)])
+    elif hw=='crossing' and nb[0]<3 and nb[2]>=5:CR.append([round(nb[3],1),round(nb[4],1),round(nb[1],3),nb[2]])
+    elif hw=='bus_stop':BS.append([x,z,round(nb[1],3),round(nb[0],1),t.get('name','')])
 T=[p(e['id']) for e in d['elements'] if e['type']=='node' and e.get('tags',{}).get('natural')=='tree']
-open('data.js','w').write('window.CITY='+json.dumps({'b':B,'r':R,'g':G,'w':A,'t':T},separators=(',',':'),ensure_ascii=False)+';')
+open('data.js','w').write('window.CITY='+json.dumps({'b':B,'r':R,'g':G,'w':A,'t':T,'ts':TS,'cr':CR,'bs':BS},separators=(',',':'),ensure_ascii=False)+';')
 print(len(B),sum(1 for b in B if b['rc']),[b['rc'] for b in B[:8]])
