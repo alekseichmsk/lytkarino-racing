@@ -2,7 +2,7 @@
 'use strict';
 const C=window.CITY,Q=location.search,demo=Q.includes('demo'),topv=Q.includes('top'),mobile='ontouchstart' in window;
 const R=new THREE.WebGLRenderer({antialias:!mobile,preserveDrawingBuffer:true});
-R.setPixelRatio(Math.min(devicePixelRatio,mobile?1.5:2));R.setSize(innerWidth,innerHeight);document.body.prepend(R.domElement);
+R.setPixelRatio(Math.min(devicePixelRatio||1,2));R.domElement.id='gl';R.setSize(innerWidth,innerHeight,false);document.body.prepend(R.domElement);
 R.shadowMap.enabled=!mobile;R.shadowMap.type=THREE.PCFSoftShadowMap;
 const S=new THREE.Scene();
 let rnd=(()=>{let s=12345;return()=>(s=(s*16807)%2147483647)/2147483647;})();
@@ -350,6 +350,12 @@ function frame(t){const dt=Math.min(0.05,(t-last)/1000)||0.016;last=t;step(dt);u
  if(fr++%3==0)drawDisp(st.v,st.steer);
  if(LK){topCam.position.set(LK[0]+LK[2]*45,30,LK[1]+LK[3]*45);topCam.lookAt(LK[0],6,LK[1]);R.render(S,topCam);}else if(topv){topCam.position.set(st.x-200,300,st.z+250);topCam.lookAt(st.x,0,st.z);R.render(S,topCam);}else R.render(S,cam);
  requestAnimationFrame(frame);}
-addEventListener('resize',()=>{cam.fov=innerWidth<innerHeight?95:68;[cam,topCam].forEach(c=>{c.aspect=innerWidth/innerHeight;c.updateProjectionMatrix();});R.setSize(innerWidth,innerHeight);});
+function fit(){const w=window.innerWidth,h=window.innerHeight;if(!w||!h)return;cam.fov=w<h?95:68;[cam,topCam].forEach(c=>{c.aspect=w/h;c.updateProjectionMatrix();});R.setPixelRatio(Math.min(devicePixelRatio||1,2));R.setSize(w,h,false);}
+function refit(){fit();setTimeout(fit,150);setTimeout(fit,500);}
+addEventListener('resize',refit);addEventListener('orientationchange',refit);if(window.visualViewport)visualViewport.addEventListener('resize',refit);document.addEventListener('fullscreenchange',refit);document.addEventListener('webkitfullscreenchange',refit);
+{const b=document.getElementById('fs'),de=document.documentElement,req=de.requestFullscreen||de.webkitRequestFullscreen;
+ if(!req||!(document.fullscreenEnabled||document.webkitFullscreenEnabled))b.style.display='none';
+ else b.onclick=async()=>{try{if(document.fullscreenElement||document.webkitFullscreenElement){(document.exitFullscreen||document.webkitExitFullscreen).call(document);return;}await req.call(de,{navigationUI:'hide'});if(screen.orientation&&screen.orientation.lock)await screen.orientation.lock('landscape').catch(()=>{});}catch(e){}refit();};}
+fit();
 requestAnimationFrame(frame);
 })();
