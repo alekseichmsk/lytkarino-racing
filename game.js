@@ -371,7 +371,7 @@ PT("pre-landmarks");{const LMs=window.LM||[];const white=new THREE.MeshLambertMa
  '<li><b>Фасады</b> (хрущёвки 1-447, П-44, II-49, сталинки, частные дома, гаражи, первые этажи с магазинами): процедурно сгенерированные текстуры из набора lytkarino-textures (GenerateImage + post.py). Настоящие фото фасадов Лыткарино скоро будут добавлены.</li>'+
  '<li><b>Референсы BMW X5 G05</b>: фото с Wikimedia Commons (авторы указаны на страницах файлов, CC BY-SA); размеры: официальные данные BMW (4935×2004×1765, база 2975).</li>'+
  '<li><b>Достопримечательности</b> (модели сделаны вручную по OSM): '+(window.LM||[]).filter(l=>l[3]).map(l=>l[3]).filter((v,i,a)=>a.indexOf(v)==i).join(', ')+'.</li>'+
- '<li><b>Движок</b>: three.js r149 (MIT). Звук V8 синтезирован Web Audio.</li></ul>';
+ '<li><b>Звук двигателя</b>: петли motorseamless (Ziph, OpenGameArt «Some sounds», CC0) с кроссфейдом по оборотам + синтезированный V8-слой, турбина и выхлопные хлопки (Web Audio).</li><li><b>Фото-фасады</b>: текстуры по реальным фото Лыткарино (Gemini); ДК «Мир» — фото Bloger iz lyt, Wikimedia Commons, CC BY-SA 4.0.</li><li><b>Движок</b>: three.js r149 (MIT).</li></ul>';
  document.body.appendChild(d);const b=document.createElement('b');b.id='bCr';b.title='Источники и авторы';b.textContent='ⓘ';const fs=document.getElementById('fs');if(fs&&fs.parentNode)fs.parentNode.insertBefore(b,fs);
  const tg=e=>{e&&e.stopPropagation();d.style.display=d.style.display=='none'?'block':'none';};b.addEventListener('click',tg);b.addEventListener('touchend',e=>{e.preventDefault();tg(e);});d.querySelector('#crx').addEventListener('click',tg);if(/credits/.test(Q))d.style.display='block';}
 PT("photo facades "+JSON.stringify(window.__phc||{}));PT("pre-furn");const FURNCH=[];{const FS0=S.children.length;const F=window.FURN;if(F&&!/nofurn/.test(Q)){const mergeG=(L)=>{const A={position:[],normal:[]};L.forEach(g=>{g=g.index?g.toNonIndexed():g;A.position.push(...g.attributes.position.array);A.normal.push(...g.attributes.normal.array);});const o=new THREE.BufferGeometry();o.setAttribute('position',new THREE.Float32BufferAttribute(A.position,3));o.setAttribute('normal',new THREE.Float32BufferAttribute(A.normal,3));return o;};
@@ -716,7 +716,7 @@ if(mobile||Q.includes('touch')){const tc=document.getElementById('tc');tc.classL
  const swEnd=e=>{if(find(e,sid)){sid=null;swHeld=false;}};sw.addEventListener('touchend',swEnd);sw.addEventListener('touchcancel',swEnd);
  window.__swg=swg;
  [['gasP','gas'],['brkP','brk']].forEach(([id,k])=>{const el=document.getElementById(id),bar=el.querySelector('i');let pid=null;
-  const upd=t=>{const r=el.getBoundingClientRect();const v=Math.max(.35,Math.min(1,1-(t.clientY-r.top)/r.height+.15));T[k]=v;bar.style.height=(v*100)+'%';};
+  const upd=t=>{const r=el.getBoundingClientRect();const y=1-(t.clientY-r.top)/r.height;const v=k==='brk'?Math.min(1,.7+y*.6):Math.max(.35,Math.min(1,y+.15));T[k]=v;bar.style.height=(v*100)+'%';};
   el.addEventListener('touchstart',e=>{e.preventDefault();audioInit();const t=e.changedTouches[0];pid=t.identifier;upd(t);},{passive:false});
   el.addEventListener('touchmove',e=>{e.preventDefault();const t=find(e,pid);if(t)upd(t);},{passive:false});
   const end=e=>{if(find(e,pid)){pid=null;T[k]=0;bar.style.height='0';}};el.addEventListener('touchend',end);el.addEventListener('touchcancel',end);});
@@ -731,12 +731,32 @@ if(mobile||Q.includes('touch')){const tc=document.getElementById('tc');tc.classL
 updGsel();{const m=/swa=(-?\d+)/.exec(Q);if(m){swAng=+m[1];swHeld=true;}}
 function swTick(dt){if(!swHeld)swAng*=Math.exp(-dt*5);if(Math.abs(swAng)<.3&&!swHeld)swAng=0;T.steer=swAng/450;if(window.__swg)window.__swg.setAttribute('transform','rotate('+swAng.toFixed(1)+')');}
 // ---------- engine sound (WebAudio) ----------
-let AU=null;function audioInit(){if(AU||demo)return;try{const ac=new (window.AudioContext||window.webkitAudioContext)();const o1=ac.createOscillator(),o2=ac.createOscillator(),o3=ac.createOscillator(),f=ac.createBiquadFilter(),g=ac.createGain();
- o1.type='sawtooth';o2.type='square';o3.type='triangle';f.type='lowpass';f.Q.value=4;g.gain.value=0;[o1,o2,o3].forEach(o=>{o.connect(f);o.start();});f.connect(g);g.connect(ac.destination);
- const nb=ac.createBuffer(1,ac.sampleRate,ac.sampleRate),nd=nb.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;const ns=ac.createBufferSource();ns.buffer=nb;ns.loop=true;const nf=ac.createBiquadFilter();nf.type='bandpass';nf.frequency.value=900;nf.Q.value=.8;const ng=ac.createGain();ng.gain.value=0;ns.connect(nf);nf.connect(ng);ng.connect(ac.destination);ns.start();
- AU={ac,o1,o2,o3,f,g,ng};}catch(e){}}
-function audioUpd(){if(!AU)return;const t=AU.ac.currentTime,fq=st.rpm/60*4*(1+(Math.random()-.5)*.012*(1-st.thr));AU.o1.frequency.setTargetAtTime(fq,t,.03);AU.o2.frequency.setTargetAtTime(fq*.5,t,.03);AU.o3.frequency.setTargetAtTime(fq*.25,t,.03);/* V8: 4 firings/rev-pair, cross-plane burble via sub-harmonics + jitter */
- AU.f.frequency.setTargetAtTime(180+st.thr*1300+st.rpm*.12,t,.05);AU.g.gain.setTargetAtTime(st.rpm>0?.06+st.thr*.12:0,t,.05);AU.ng.gain.setTargetAtTime(Math.min(.3,(st.slip||0)*.3),t,.04);AU.ng.playbackRate&&0;}
+let AU=null;function audioInit(){if(AU||demo)return;try{const ac=new (window.AudioContext||window.webkitAudioContext)();const out=ac.createGain();out.gain.value=.9;const cab=ac.createBiquadFilter();cab.type='lowpass';cab.frequency.value=2600;cab.Q.value=.5;cab.connect(out);out.connect(ac.destination);
+ // synth sub layer (V8 burble)
+ const o1=ac.createOscillator(),o2=ac.createOscillator(),o3=ac.createOscillator(),f=ac.createBiquadFilter(),g=ac.createGain();o1.type='sawtooth';o2.type='square';o3.type='triangle';f.type='lowpass';f.Q.value=4;g.gain.value=0;[o1,o2,o3].forEach(o=>{o.connect(f);o.start();});f.connect(g);g.connect(cab);
+ const nb=ac.createBuffer(1,ac.sampleRate,ac.sampleRate),nd=nb.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;const ns=ac.createBufferSource();ns.buffer=nb;ns.loop=true;const nf=ac.createBiquadFilter();nf.type='bandpass';nf.frequency.value=900;nf.Q.value=.8;const ng=ac.createGain();ng.gain.value=0;ns.connect(nf);nf.connect(ng);ng.connect(out);ns.start();
+ // sampled RPM loops (CC0, Ziph / OpenGameArt): crossfade by rpm, pitch-shift, on/off-load split
+ const bus=ac.createGain(),onG=ac.createGain(),offF=ac.createBiquadFilter(),offG=ac.createGain();offF.type='lowpass';offF.frequency.value=650;bus.connect(onG);onG.connect(cab);bus.connect(offF);offF.connect(offG);offG.connect(cab);onG.gain.value=0;offG.gain.value=0;
+ const LP=[['idle',690],['low',1390],['mid',1960],['high',3590]].map(([n,b])=>{const gg=ac.createGain();gg.gain.value=0;gg.connect(bus);const L={b,g:gg,src:null};fetch('snd/eng_'+n+'.wav').then(r=>r.arrayBuffer()).then(x=>ac.decodeAudioData(x)).then(buf=>{const sr=ac.createBufferSource();sr.buffer=buf;sr.loop=true;sr.connect(gg);sr.start(0,Math.random()*3);L.src=sr;}).catch(()=>{});return L;});
+ // turbo whistle + blow-off/pops (noise bursts)
+ const tw=ac.createOscillator();tw.type='sine';const twG=ac.createGain();twG.gain.value=0;tw.connect(twG);twG.connect(cab);tw.start();
+ const burst=(fq,q,dur,vol)=>{const s2=ac.createBufferSource();s2.buffer=nb;const bf=ac.createBiquadFilter();bf.type='bandpass';bf.frequency.value=fq;bf.Q.value=q;const bg=ac.createGain();const t=ac.currentTime;bg.gain.setValueAtTime(vol,t);bg.gain.exponentialRampToValueAtTime(.001,t+dur);s2.connect(bf);bf.connect(bg);bg.connect(cab);s2.start(t,Math.random()*.5,dur+.05);};
+ AU={ac,o1,o2,o3,f,g,ng,LP,onG,offG,offF,cab,tw,twG,burst,boost:0,lastThr:0,popT:0};}catch(e){}}
+function audioUpd(){if(!AU)return;const A=AU,t=A.ac.currentTime,rpm=st.rpm,fq=rpm/60*4*(1+(Math.random()-.5)*.012*(1-st.thr));
+ A.o1.frequency.setTargetAtTime(fq,t,.03);A.o2.frequency.setTargetAtTime(fq*.5,t,.03);A.o3.frequency.setTargetAtTime(fq*.25,t,.03);A.f.frequency.setTargetAtTime(150+st.thr*700+rpm*.06,t,.05);A.g.gain.setTargetAtTime(rpm>0?(.02+st.thr*.04):0,t,.05);
+ A.ng.gain.setTargetAtTime(Math.min(.3,(st.slip||0)*.3),t,.04);
+ // loop crossfade
+ const L=A.LP;let k=0;while(k<L.length-1&&rpm>L[k+1].b)k++;const a=L[k],b=L[Math.min(k+1,L.length-1)];let w=b===a?0:Math.max(0,Math.min(1,(rpm-a.b)/(b.b-a.b)));
+ L.forEach(l=>{const gv=rpm<=0?0:l===a?Math.cos(w*Math.PI/2):l===b?Math.sin(w*Math.PI/2):0;l.g.gain.setTargetAtTime(gv,t,.04);if(l.src)l.src.playbackRate.setTargetAtTime(Math.max(.3,Math.min(2.2,Math.max(rpm,500)/l.b)),t,.03);});
+ const ld=Math.min(1,st.thr*1.3);A.onG.gain.setTargetAtTime(rpm>0?(.15+.55*ld)*(.7+rpm/6500*.5):0,t,.05);A.offG.gain.setTargetAtTime(rpm>0?(1-ld)*.45:0,t,.06);A.offF.frequency.setTargetAtTime(400+rpm*.1,t,.1);
+ A.cab.frequency.setTargetAtTime(chase?9000:2600,t,.1);
+ // turbo: boost builds with load above ~1800 rpm
+ const tgt=st.thr>.3&&rpm>1800?Math.min(1,(rpm-1800)/2500)*st.thr:0;A.boost+=(tgt-A.boost)*(tgt>A.boost?.03:.15);A.tw.frequency.setTargetAtTime(1800+A.boost*5200,t,.05);A.twG.gain.setTargetAtTime(A.boost*.025,t,.05);
+ if(A.lastThr>.6&&st.thr<.25&&A.boost>.4)A.burst(2500,1.2,.35,.08*A.boost);
+ // exhaust pops on lift in Sport+
+ if(st.mode==2&&A.lastThr>.5&&st.thr<.15&&rpm>3200)A.popT=.7;if(A.popT>0){A.popT-=1/60;if(Math.random()<.18)A.burst(180+Math.random()*250,2.5,.07+Math.random()*.06,.5+Math.random()*.4);}
+ A.lastThr=st.thr;}
+if(/audtest/.test(Q))setTimeout(()=>{audioInit();setTimeout(()=>console.log('TEST audio',!!AU,AU&&AU.LP.map(l=>!!l.src).join(','),'boost',AU&&AU.boost.toFixed(2)),2500);},300);
 // ---------- arcade-sim driving ----------
 const DYNO=Q.includes('dyno');const GR=[5.0,3.2,2.143,1.72,1.314,1.0,.822,.64],FD=3.15,RW=.36,MASS=2420,WB=2.975,TRF=1.676,TRR=1.702;// BMW X5 M60i: 4.4 V8 390 kW (530 hp), 750 Nm, ZF 8HP, Vmax 285 (M package)
 function torque(rpm){if(rpm>6600)return 0;if(rpm<1800)return 520+230*Math.max(0,rpm-1000)/800;return Math.min(750,390000/(rpm*Math.PI/30));}
@@ -753,7 +773,7 @@ function step(dt){
  if(st.autohold&&Math.abs(st.v)<.3&&brkIn>.3&&st.sel!=='P')st.held=true;if(thrIn>.1){st.held=false;if(st.sel==='D'||st.sel==='R')st.epb=false;}
  if(!st.on)thrIn=0;
  const wantT=thrIn,wantB=(st.launch==1)?1:brkIn;
- const MODE=[{thr:3,up:.85,st:3.0,dsc:1},{thr:6,up:1,st:3.5,dsc:.6},{thr:10,up:1.08,st:4.2,dsc:0}][st.mode];st.thr+=(wantT-st.thr)*Math.min(1,dt*MODE.thr);st.brk+=(wantB-st.brk)*Math.min(1,dt*8);
+ const MODE=[{thr:3,up:.85,st:3.0,dsc:1},{thr:6,up:1,st:3.5,dsc:.6},{thr:10,up:1.08,st:4.2,dsc:0}][st.mode];st.thr+=(wantT-st.thr)*Math.min(1,dt*MODE.thr);st.brk+=(wantB-st.brk)*Math.min(1,dt*(wantB>st.brk?16:10));
  const sr=Math.abs(stIn)>Math.abs(st.steer)?MODE.st:6;st.steer+=(stIn-st.steer)*Math.min(1,dt*sr);
  st.road=DYNO||onRoad(st.x,st.z);
  // gearbox
@@ -763,7 +783,7 @@ function step(dt){
  let F=torque(st.rpm)*ratio*FD/RW*st.thr*.85*(st.shift>0?0:1);const Fraw=F*(st.launch==2?1:1);const cap=(st.road?(st.launch==2?.85:.75):.45)*9.81*MASS;if(!st.on)F=0;st.tc=0;let spin=0;if(F>cap){if(st.tcOn){F=cap;st.tc=F>0?1:0;}else{spin=Math.min(1,(F-cap)/cap);F=cap*.92;}}if(st.rev)F=Math.min(F,4000);if(!drv)F=0;
  const roll=(st.road?260:1400)+(st.road?0:.6*sp*sp),drag=.55*vf*vf;
  // ---- tire model: bicycle model, per-axle Pacejka-like curves, friction circle, xDrive split, ABS/TC/DSC ----
- const mu=st.road?1.0:.62,GG=9.81,AA=1.45,BB=1.525,LL=AA+BB,HC=.62,IZ=4300,DS=Math.max(MODE.dsc,.4);
+ const mu=st.road?1.1:.65,GG=9.81,AA=1.45,BB=1.525,LL=AA+BB,HC=.62,IZ=4300,DS=Math.max(MODE.dsc,.4);
  const maxA=.62/(1+Math.abs(vf)*.045),delta=st.steer*maxA;
  const pac=x=>{const bx=9*x;return Math.sin(1.45*Math.atan(bx-.3*(bx-Math.atan(bx))));};
  const rearSplit=st.mode==2?.8:.6;let Fd=drv?(st.rev?-Math.min(Fraw,6000)*Math.max(0,Math.min(1,(20/3.6+vf)/1.5)):Fraw)*(st.on?1:0):0;
@@ -771,8 +791,8 @@ function step(dt){
  for(let k=0;k<NS;k++){
   const Fzf=MASS*GG*BB/LL-MASS*ax*HC/LL,Fzr=MASS*GG*AA/LL+MASS*ax*HC/LL,Ff=mu*Math.max(800,Fzf),Fr=mu*Math.max(800,Fzr);
   const den=Math.max(Math.abs(u),3),sgu=u<-.1?-1:1;const af=sgu*delta-Math.atan2(v+AA*r,den),ar=-Math.atan2(v-BB*r,den);/* lateral force always opposes contact-patch lateral velocity; valid for reverse */
-  let Fxf=Fd*dCut*(1-rearSplit),Fxr=Fd*dCut*rearSplit;const bT=st.brk*36000;let Bf=bT*.62,Br=bT*.38;let lockF=false,lockR=!!hb;
-  {const cor=Math.abs(delta)>.02||Math.abs(beta)>.03;if(st.absOn){const kf=cor?.82:.95,kr=cor?.62:.8;if(Bf>Ff*kf){Bf=Ff*kf*(.92+.08*Math.random());st.abs=1;}if(Br>Fr*kr){Br=Fr*kr;st.abs=1;}}else{if(Bf>Ff){lockF=true;Bf=Ff*.7;st.lock=1;}if(Br>Fr*.8)Br=Fr*.8;/* proportioning valve: rear never locks from pedal */}}
+  let Fxf=Fd*dCut*(1-rearSplit),Fxr=Fd*dCut*rearSplit;const bT=st.brk*42000;let Bf=bT*.62,Br=bT*.38;let lockF=false,lockR=!!hb;
+  {const cor=Math.abs(delta)>.02||Math.abs(beta)>.03;if(st.absOn){const kf=cor?.84:1.0,kr=cor?.66:.96;if(Bf>Ff*kf){Bf=Ff*kf*(.97+.03*Math.random());st.abs=1;}if(Br>Fr*kr){Br=Fr*kr;st.abs=1;}}else{if(Bf>Ff){lockF=true;Bf=Ff*.7;st.lock=1;}if(Br>Fr*.8)Br=Fr*.8;/* proportioning valve: rear never locks from pedal */}}
   if(lockR)Br=hb&&!st.brk?Fr*.55:Fr*.7;const sg=Math.abs(u)>.15?Math.sign(u):0;Fxf-=Bf*sg;Fxr-=Br*sg;
   if(st.tcOn&&!lockR){if(Fd*Fxr>0&&Math.abs(Fxr)>Fr*.93){Fxr=Math.sign(Fxr)*Fr*.93;st.tc=1;}if(Fd*Fxf>0&&Math.abs(Fxf)>Ff*.93){Fxf=Math.sign(Fxf)*Ff*.93;st.tc=1;}}
   let sR=0;if(Math.abs(Fxr)>Fr){sR=Math.min(1,(Math.abs(Fxr)-Fr)/Fr+.35);Fxr=Math.sign(Fxr)*Fr*.85;}if(Math.abs(Fxf)>Ff){Fxf=Math.sign(Fxf)*Ff*.85;}
@@ -783,7 +803,7 @@ function step(dt){
   if(!st.dscOn&&u>5&&Math.abs(beta)>(hb?.25:.1)){const rEq=-Math.sign(beta)*mu*GG*.8/Math.max(Math.hypot(u,v),5),kk=6+25*Math.max(0,Math.abs(beta)-.4);Mz-=IZ*(r-rEq)*kk*Math.min(1,(Math.abs(beta)-.1)*6);}
   const drag=.55*u*Math.abs(u),roll=Math.abs(u)>.05?(st.road?260:1400)*Math.sign(u):0,cd=Math.cos(delta),sd=Math.sin(delta);
   const cx=lockF?1:cd,sx=lockF?0:sd;const du=(Fxf*cx-Fyf*sd+Fxr-drag-roll)/MASS+v*r,dv=(Fyf*cd+Fxf*sx+Fyr)/MASS-u*r,dr=(AA*(Fyf*cd+Fxf*sx)-BB*Fyr+Mz)/IZ;
-  const u0=u;u+=du*hh;v+=dv*hh;r+=dr*hh;if(u0*u<0&&Math.abs(Fd)<50)u=0;if(Math.abs(u)<.08&&Math.abs(Fd)<50&&st.brk+hb>0)u=0;
+  const u0=u;u+=du*hh;v+=dv*hh;r+=dr*hh;if(u0*u<0&&Math.abs(Fd)<50)u=0;if(st.brk>.2&&Math.abs(u)<.4&&Math.abs(Fd*(1-st.brk))<300){u*=.6;v*=.6;r*=.6;}if(Math.abs(u)<.08&&Math.abs(Fd)<50&&st.brk+hb>0)u=0;
   if(Math.abs(u)<3){const w=1-Math.abs(u)/3,kin=u*Math.tan(delta)/LL;r=r*(1-w)+kin*w;v*=1-w*.6;}
   ax=du;spinR=Math.max(spinR,sR);const vr=Math.abs(v-BB*r);slipMax=Math.max(slipMax,vr>2.2?Math.min(1,vr/7):0,sR,(lockR||lockF)&&Math.abs(u)>2?.8:0);}
  vf=Math.max(-9,Math.min(285/3.6,u));vl=v;st.r=r;st.spin=spinR;st.slip=st.road?slipMax:slipMax*.5;st.beta=Math.abs(vf)>4?beta:0;
@@ -829,7 +849,7 @@ function applyTod(){const t=TOD[tod];__facadeNight(tod==2?1.3:tod==1?.35:0);S.ba
 function setLights(v){lights=v;hl.intensity=v?2.2:0;document.getElementById('bLt').classList.toggle('a',v);}
 function setMode(m){st.mode=m;st.dscOn=st.tcOn=m<2;const b=document.getElementById('bMode');b.style.color=['#8cf','#fb6','#f66'][m];}document.getElementById('bMode').onclick=()=>setMode((st.mode+1)%3);addEventListener('keydown',e=>{if(e.code=='KeyM')setMode((st.mode+1)%3);});setMode(st.mode);{const m=/mode=(\d)/.exec(Q);if(m)setMode(+m[1]);}
 document.getElementById('bLt').onclick=()=>setLights(!lights);
-document.getElementById('bTod').onclick=()=>{tod=(tod+1)%3;applyTod();};
+document.getElementById('bTod').onclick=()=>{tod=(tod+1)%3;applyTod();};if(/night/.test(Q)){tod=2;applyTod();}
 {const b=document.getElementById('bBack');const on=e=>{e.preventDefault();lookBack=true;b.classList.add('a');},off=()=>{lookBack=false;b.classList.remove('a');};
  b.addEventListener('touchstart',on,{passive:false});b.addEventListener('touchend',off);b.addEventListener('mousedown',on);addEventListener('mouseup',off);}
 addEventListener('keydown',e=>{if(e.code=='KeyL')setLights(!lights);if(e.code=='KeyT'){tod=(tod+1)%3;applyTod();}if(e.code=='KeyB')lookBack=true;if(e.code=='KeyF')document.getElementById('fs').onclick&&document.getElementById('fs').onclick();});
