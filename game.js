@@ -321,6 +321,77 @@ if(!o.isMesh||o.isInstancedMesh||CHUNKS.includes(o))return;let g=o.geometry;if(!
  Object.values(parts).forEach(ts=>{const ng=new THREE.BufferGeometry();names.forEach(n=>{const a=g.attributes[n],is=a.itemSize,arr=new a.array.constructor(ts.length*3*is);ts.forEach((t,j)=>{for(let k=0;k<3*is;k++)arr[j*3*is+k]=a.array[t*3*is+k];});ng.setAttribute(n,new THREE.BufferAttribute(arr,is,a.normalized));});
   ng.computeBoundingSphere();const m=new THREE.Mesh(ng,o.material);m.position.copy(o.position);m.rotation.copy(o.rotation);m.scale.copy(o.scale);m.renderOrder=o.renderOrder;m.receiveShadow=o.receiveShadow;m.castShadow=o.castShadow;S.add(m);CHUNKS.push(m);});
  S.remove(o);});}
+// ---------- street furniture from OSM (FURN) ----------
+PT("pre-furn");{const F=window.FURN;if(F&&!/nofurn/.test(Q)){const mergeG=(L)=>{const A={position:[],normal:[]};L.forEach(g=>{g=g.index?g.toNonIndexed():g;A.position.push(...g.attributes.position.array);A.normal.push(...g.attributes.normal.array);});const o=new THREE.BufferGeometry();o.setAttribute('position',new THREE.Float32BufferAttribute(A.position,3));o.setAttribute('normal',new THREE.Float32BufferAttribute(A.normal,3));return o;};
+const M4=new THREE.Matrix4(),Qt=new THREE.Quaternion(),V=new THREE.Vector3(),Sc=new THREE.Vector3(),Y=new THREE.Vector3(0,1,0);
+const segs=(list,step)=>{const o=[];list.forEach(p=>{for(let i=0;i<p.length-1;i++){const a=p[i],b=p[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<.3||L>400)continue;if(!step){o.push([a,b,L]);continue;}const n=Math.max(1,Math.round(L/step));for(let k=0;k<n;k++){const t0=k/n,t1=(k+1)/n;o.push([[a[0]+(b[0]-a[0])*t0,a[1]+(b[1]-a[1])*t0],[a[0]+(b[0]-a[0])*t1,a[1]+(b[1]-a[1])*t1],L/n]);}}});return o;};
+const setSeg=(im,i,s,h,w,y)=>{const a=s[0],b=s[1];Qt.setFromAxisAngle(Y,Math.atan2(-(b[1]-a[1]),b[0]-a[0]));M4.compose(V.set((a[0]+b[0])/2,y,(a[1]+b[1])/2),Qt,Sc.set(s[2]+.05,h,w));im.setMatrixAt(i,M4);};
+const box=new THREE.BoxGeometry(1,1,1).translate(0,.5,0);
+const lineMesh=(list,mat,h,w,step)=>{const S2=segs(list,step);if(!S2.length)return null;const im=new THREE.InstancedMesh(box,mat,S2.length);S2.forEach((s,i)=>setSeg(im,i,s,h,w,0));S.add(im);return S2;};
+// fences: semi-transparent mesh texture
+const fenceT=tex(cv(64,64,(g,w,h)=>{g.clearRect(0,0,w,h);g.strokeStyle='#4a5a4a';g.lineWidth=3;for(let i=0;i<w;i+=8){g.beginPath();g.moveTo(i,0);g.lineTo(i,h);g.stroke();}g.lineWidth=5;g.beginPath();g.moveTo(0,4);g.lineTo(w,4);g.moveTo(0,h-4);g.lineTo(w,h-4);g.stroke();}));
+lineMesh(F.fe,new THREE.MeshLambertMaterial({map:fenceT,transparent:true,alphaTest:.4,side:THREE.DoubleSide}),1.7,.05,2.5);
+const wallT=tex(cv(128,64,(g,w,h)=>{g.fillStyle='#a8a49a';g.fillRect(0,0,w,h);g.fillStyle='#8e8a80';for(let i=0;i<w;i+=32)g.fillRect(i,0,2,h);noise(g,w,h,.15,400);}));
+lineMesh(F.wl,new THREE.MeshLambertMaterial({map:wallT}),2.1,.22,4);
+// guard rails: rail + posts
+{const S2=lineMesh(F.gr,new THREE.MeshLambertMaterial({color:0xb8bcc0}),.32,.08,3);if(S2){const im=new THREE.InstancedMesh(box,new THREE.MeshLambertMaterial({color:0x6a6e72}),S2.length);S2.forEach((s,i)=>{M4.makeTranslation(s[0][0],0,s[0][1]);M4.scale(Sc.set(.1,.75,.1));im.setMatrixAt(i,M4);});S.add(im);
+ // lift rail
+ }}
+// sidewalks from OSM footway=sidewalk / footways
+{const P=[];F.sw.forEach(p=>{for(let i=0;i<p.length-1;i++){const a=p[i],b=p[i+1],dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz)||1,h=1,nx=-dz/L*h,nz=dx/L*h,y=.05;P.push(a[0]+nx,y,a[1]+nz,b[0]+nx,y,b[1]+nz,b[0]-nx,y,b[1]-nz,a[0]+nx,y,a[1]+nz,b[0]-nx,y,b[1]-nz,a[0]-nx,y,a[1]-nz);}});
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.computeVertexNormals();const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:0x9a9890,polygonOffset:true,polygonOffsetFactor:-2}));m.receiveShadow=true;S.add(m);}
+// shrubs: OSM hedges + along sidewalks + scrub polygons
+{const pts=[];const pip=(x,z,p)=>{let c=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const a=p[i],b=p[j];if((a[1]>z)!=(b[1]>z)&&x<(b[0]-a[0])*(z-a[1])/(b[1]-a[1])+a[0])c=!c;}return c;};
+ segs(F.sw,6).forEach((s,i)=>{if(i%3)return;const a=s[0],b=s[1],L=s[2]||1,nx=-(b[1]-a[1])/L,nz=(b[0]-a[0])/L,sd=i%2?1:-1;pts.push([a[0]+nx*1.8*sd,a[1]+nz*1.8*sd,.7+rnd()*.5]);});
+ F.sc.forEach(p=>{let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;p.forEach(q=>{x0=Math.min(x0,q[0]);x1=Math.max(x1,q[0]);z0=Math.min(z0,q[1]);z1=Math.max(z1,q[1]);});const n=Math.min(150,(x1-x0)*(z1-z0)/60);for(let k=0;k<n;k++){const x=x0+rnd()*(x1-x0),z=z0+rnd()*(z1-z0);if(pip(x,z,p))pts.push([x,z,1+rnd()*1.2]);}});
+ const im=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.8,0).translate(0,.55,0),new THREE.MeshLambertMaterial({color:0x3f6a2c,flatShading:true}),pts.length);
+ pts.forEach((p,i)=>{M4.makeRotationY(rnd()*6);M4.scale(Sc.set(p[2]*(1+rnd()*.4),p[2]*.8,p[2]));M4.setPosition(p[0],0,p[1]);im.setMatrixAt(i,M4);});S.add(im);
+ // hedges (OSM barrier=hedge if any)
+ lineMesh(F.hg,new THREE.MeshLambertMaterial({color:0x35602a}),1.1,.8,2);}
+// parking lots: asphalt + bay markings + parked cars
+{const AP=[],MK=[],cars=[];const pip=(x,z,p)=>{let c=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const a=p[i],b=p[j];if((a[1]>z)!=(b[1]>z)&&x<(b[0]-a[0])*(z-a[1])/(b[1]-a[1])+a[0])c=!c;}return c;};
+ F.pk.forEach(p=>{const sh=new THREE.Shape(p.map(q=>new THREE.Vector2(q[0],-q[1])));const g=new THREE.ShapeGeometry(sh);g.rotateX(-Math.PI/2);AP.push(g.translate(0,.045,0));
+  let bi=0,bl=0;for(let i=0;i<p.length-1;i++){const l=Math.hypot(p[i+1][0]-p[i][0],p[i+1][1]-p[i][1]);if(l>bl){bl=l;bi=i;}}
+  const a=p[bi],b=p[bi+1],ux=(b[0]-a[0])/bl,uz=(b[1]-a[1])/bl;let cx=0,cz=0;p.forEach(q=>{cx+=q[0];cz+=q[1];});cx/=p.length;cz/=p.length;let nx=-uz,nz=ux;if((cx-a[0])*nx+(cz-a[1])*nz<0){nx=-nx;nz=-nz;}
+  for(let row=0;row<8;row++){const off=1.2+row*(row%2?5.2:7);let any=false;for(let t=1.5;t<bl-1.5;t+=2.6){const x=a[0]+ux*t+nx*(off+2.5),z=a[1]+uz*t+nz*(off+2.5);if(!pip(x,z,p))continue;any=true;
+    // marking line
+    const lx=a[0]+ux*(t-1.3)+nx*off,lz=a[1]+uz*(t-1.3)+nz*off;MK.push([lx,lz,lx+nx*5,lz+nz*5]);
+    if(rnd()<(mobile?.4:.6))cars.push([x,z,Math.atan2(nx,nz)+(rnd()<.5?0:Math.PI)+(rnd()-.5)*.08]);}if(!any&&row>1)break;}});
+ if(AP.length){const g=null;const mat=new THREE.MeshLambertMaterial({color:0x4a4a4c,polygonOffset:true,polygonOffsetFactor:-3});S.add(new THREE.Mesh(mergeG(AP),mat));}
+ if(MK.length){const im=new THREE.InstancedMesh(new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2).translate(0,.06,0),new THREE.MeshBasicMaterial({color:0xe8e8e0}),MK.length);MK.forEach((m,i)=>{const L=5;Qt.setFromAxisAngle(Y,Math.atan2(-(m[3]-m[1]),m[2]-m[0]));M4.compose(V.set((m[0]+m[2])/2,0,(m[1]+m[3])/2),Qt,Sc.set(L,1,.12));im.setMatrixAt(i,M4);});S.add(im);}
+ if(cars.length){const body=new THREE.BoxGeometry(1.8,.75,4.4).translate(0,.55,0),cab=new THREE.BoxGeometry(1.6,.55,2.3).translate(0,1.2,-.2);
+  const mg=(mergeG([body,cab]))||body;const cols=[0xe8e8e8,0x202020,0x8a8f96,0xb0b4b8,0x1d3a6b,0x7a1e1e,0x2b2b30,0xd8d8d8,0x56606a,0x3e5a3a];
+  const im=new THREE.InstancedMesh(mg,new THREE.MeshLambertMaterial({color:0xffffff}),cars.length);const col=new THREE.Color();cars.forEach((c,i)=>{M4.makeRotationY(c[2]);M4.setPosition(c[0],0,c[1]);im.setMatrixAt(i,M4);im.setColorAt(i,col.setHex(cols[(rnd()*cols.length)|0]));});im.castShadow=!mobile;S.add(im);}
+ PT("parking "+F.pk.length+" lots, "+cars.length+" cars");}
+// nearest major-road direction
+const nearRoad=(x,z)=>{let bd=1e9,ang=0,side=1;major.forEach(r=>{for(let i=0;i<r.p.length-1;i++){const a=r.p[i],b=r.p[i+1],dx=b[0]-a[0],dz=b[1]-a[1],L2=dx*dx+dz*dz||1;let t=((x-a[0])*dx+(z-a[1])*dz)/L2;t=Math.max(0,Math.min(1,t));const px=a[0]+dx*t,pz=a[1]+dz*t,d=Math.hypot(x-px,z-pz);if(d<bd){bd=d;ang=Math.atan2(dx,dz);side=((x-a[0])*dz-(z-a[1])*dx)>0?1:-1;}}});return [ang,side,bd];};
+// bus stop shelters + bins + benches
+{const BS=F.bs.map(b=>{const r=nearRoad(b[0],b[1]);return [b[0],b[1],r[0]+(r[1]>0?Math.PI/2:-Math.PI/2)];});
+ const glass=new THREE.MeshLambertMaterial({color:0x9fc4d8,transparent:true,opacity:.35}),frame=new THREE.MeshLambertMaterial({color:0x3a6ea8});
+ const back=new THREE.BoxGeometry(3.2,2.2,.05).translate(0,1.25,-.7),roof=new THREE.BoxGeometry(3.4,.1,1.6).translate(0,2.4,0),bench=new THREE.BoxGeometry(2.4,.08,.45).translate(0,.48,-.4);
+ const fr=(mergeG([roof,bench,new THREE.BoxGeometry(.08,2.4,1.5).translate(-1.6,1.2,0),new THREE.BoxGeometry(.08,2.4,1.5).translate(1.6,1.2,0)]))||roof;
+ const im1=new THREE.InstancedMesh(back,glass,BS.length),im2=new THREE.InstancedMesh(fr,frame,BS.length);BS.forEach((b,i)=>{M4.makeRotationY(b[2]+Math.PI/2);M4.setPosition(b[0],0,b[1]);im1.setMatrixAt(i,M4);im2.setMatrixAt(i,M4);});S.add(im1,im2);
+ const bins=F.wb.slice();BS.forEach(b=>bins.push([b[0]+Math.cos(b[2])*2,b[1]-Math.sin(b[2])*2]));F.sh.forEach((s,i)=>{if(i%2==0)bins.push([s[0]+1.5,s[1]+1.5]);});
+ if(C.en)C.en.forEach(e=>bins.push([e[0]+1.2,e[1]+1.2]));
+ const bm=new THREE.InstancedMesh(new THREE.CylinderGeometry(.25,.2,.8,8).translate(0,.4,0),new THREE.MeshLambertMaterial({color:0x2f6b3a}),bins.length);bins.forEach((b,i)=>{M4.makeTranslation(b[0],0,b[1]);bm.setMatrixAt(i,M4);});S.add(bm);
+ const bn=new THREE.InstancedMesh((mergeG([new THREE.BoxGeometry(1.8,.06,.45).translate(0,.45,0),new THREE.BoxGeometry(1.8,.4,.05).translate(0,.7,-.22),new THREE.BoxGeometry(.06,.45,.4).translate(-.8,.22,0),new THREE.BoxGeometry(.06,.45,.4).translate(.8,.22,0)]))||new THREE.BoxGeometry(1.8,.5,.45),new THREE.MeshLambertMaterial({color:0x7a5a3a}),F.bn.length);
+ F.bn.forEach((b,i)=>{M4.makeRotationY(rnd()*6.28);M4.setPosition(b[0],0,b[1]);bn.setMatrixAt(i,M4);});S.add(bn);PT("bus stops "+BS.length+", bins "+bins.length);}
+// shop signs on real buildings (brand colours), one atlas + one merged mesh
+{const BR={'Пятёрочка':['#e31e24','#fff','#2a9d3a'],'Магнит':['#e30613','#fff'],'Дикси':['#f39200','#fff'],'Верный':['#e2001a','#fff'],'ВкусВилл':['#2bb04a','#fff'],'Перекрёсток':['#0b6e3a','#fff'],'Красное&Белое':['#9b0d1b','#fff'],'Бристоль':['#1b3d8f','#fff'],'Винлаб':['#7a1131','#fff'],'Ozon':['#005bff','#fff'],'Wildberries':['#a73afd','#fff'],'МТС':['#e30611','#fff'],'Билайн':['#ffd200','#000'],'Мегафон':['#00b956','#fff'],'Сбербанк':['#21a038','#fff'],'Сбер':['#21a038','#fff'],'Яндекс.Маркет':['#ffcc00','#000'],'Boxberry':['#ed1c24','#fff'],'Sunlight':['#000','#fff'],'Аптека':['#2e9e48','#fff'],'Ригла':['#e4002b','#fff'],'Горздрав':['#00973a','#fff'],'Доброцен':['#ffde00','#c00'],'Fix Price':['#0058a3','#fff'],'Светофор':['#e30613','#ffe600'],'Чижик':['#ffd400','#e30613'],'Spar':['#00843d','#fff'],'KFC':['#c8102e','#fff'],'Вкусно — и точка':['#ffbc0d','#264f36'],'Додо Пицца':['#ff6900','#fff']};
+ const CW=256,CH=48,COLS=8,ROWS=40;const names=[];const L=[];
+ const blds=C.b;const near=(x,z)=>{let best=null,bd=35;blds.forEach(b=>{const p=b.p;const c0=p[0];if(Math.abs(c0[0]-x)>150||Math.abs(c0[1]-z)>150)return;for(let i=0;i<p.length;i++){const a=p[i],q=p[(i+1)%p.length],dx=q[0]-a[0],dz=q[1]-a[1],L2=dx*dx+dz*dz;if(L2<9)continue;let t=((x-a[0])*dx+(z-a[1])*dz)/L2;t=Math.max(.1,Math.min(.9,t));const d=Math.hypot(x-a[0]-dx*t,z-a[1]-dz*t);if(d<bd){bd=d;best=[b,a,q,t];}}});return best;};
+ const used={};F.sh.forEach(s=>{let nm=(s[2]||'').trim();if(!nm){const T={pharmacy:'Аптека',supermarket:'Продукты',convenience:'Продукты',hairdresser:'Парикмахерская',cafe:'Кафе',fast_food:'Кафе',bakery:'Пекарня',butcher:'Мясо',florist:'Цветы',alcohol:'Алкоголь',clothes:'Одежда',hardware:'Хозтовары',beauty:'Салон красоты',bank:'Банк'};nm=T[s[3]];if(!nm)return;}
+  const hit=near(s[0],s[1]);if(!hit)return;const [b,a,q,t]=hit;const k=b.id+'_'+nm;if(used[k])return;used[k]=1;let idx=names.indexOf(nm);if(idx<0){if(names.length>=COLS*ROWS)return;idx=names.length;names.push(nm);}
+  let cx=0,cz=0;b.p.forEach(p=>{cx+=p[0];cz+=p[1];});cx/=b.p.length;cz/=b.p.length;const dx=q[0]-a[0],dz=q[1]-a[1],el=Math.hypot(dx,dz),ux=dx/el,uz=dz/el;let nx=-uz,nz=ux;const mx=a[0]+dx*t,mz=a[1]+dz*t;if((mx-cx)*nx+(mz-cz)*nz<0){nx=-nx;nz=-nz;}
+  const w=Math.min(el*.8,2.2+nm.length*.45),h=w*CH/CW*1.4;L.push([mx+nx*.18,mz+nz*.18,ux,uz,w,Math.min(h,1.1),idx,b.l>=2?3.1:Math.min(b.h||3,3)-.2]);});
+ const atl=cv(CW*COLS,CH*ROWS,(g)=>{names.forEach((nm,i)=>{const x=(i%COLS)*CW,y=((i/COLS)|0)*CH,c=BR[nm]||BR[Object.keys(BR).find(k=>nm.includes(k))]||['#1f4f8a','#fff'];g.fillStyle=c[0];g.fillRect(x,y,CW,CH);if(c[2]){g.fillStyle=c[2];g.fillRect(x,y+CH-8,CW,8);}g.fillStyle=c[1];let fs=34;g.font=`bold ${fs}px Arial`;while(g.measureText(nm).width>CW-12&&fs>12){fs-=2;g.font=`bold ${fs}px Arial`;}g.textAlign='center';g.textBaseline='middle';g.fillText(nm,x+CW/2,y+CH/2);});});
+ const at=new THREE.CanvasTexture(atl);at.anisotropy=4;const P=[],U=[];
+ L.forEach(s=>{const [x,z,ux,uz,w,h,idx,y0]=s;const u0=(idx%COLS)/COLS,u1=u0+1/COLS,v1=1-((idx/COLS)|0)/ROWS,v0=v1-1/ROWS;const ax=x-ux*w/2,az=z-uz*w/2,bx=x+ux*w/2,bz=z+uz*w/2,y1=y0+h;
+  // face winding: both sides via DoubleSide
+  P.push(ax,y0,az,bx,y0,bz,bx,y1,bz,ax,y0,az,bx,y1,bz,ax,y1,az);U.push(u1,v0,u0,v0,u0,v1,u1,v0,u0,v1,u1,v1);});
+ if(P.length){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(U,2));g.computeVertexNormals();const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:at,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4}));m.name='shopSigns';S.add(m);}
+ window.__shopSigns=L.length;PT("shop signs "+L.length+" ("+names.length+" names)");}
+}}
 PT("AI traffic");if(!/nosplit/.test(Q))splitBig();let cullN=0;const SMALL=[];S.children.slice(S0).forEach(o=>{if(CHUNKS.includes(o)||TREECH.includes(o)||o.isLight)return;const b=new THREE.Box3().setFromObject(o);if(b.isEmpty())return;const sz=b.getSize(new THREE.Vector3());if(Math.max(sz.x,sz.z)<80){const c=b.getCenter(new THREE.Vector3());o.userData.c=[c.x,c.z];SMALL.push(o);}});// ---------- AI traffic & pedestrians ----------
 function path(r){const c=[0];for(let i=1;i<r.p.length;i++)c.push(c[i-1]+Math.hypot(r.p[i][0]-r.p[i-1][0],r.p[i][1]-r.p[i-1][1]));return c;}
 function at(r,c,s,off){s=Math.max(0,Math.min(c[c.length-1]-.01,s));let i=0;while(c[i+1]<s)i++;const a=r.p[i],b=r.p[i+1],L=c[i+1]-c[i]||1,dx=(b[0]-a[0])/L,dz=(b[1]-a[1])/L,f=s-c[i];return[a[0]+dx*f-dz*off,a[1]+dz*f+dx*off,Math.atan2(dx,dz)];}
