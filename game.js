@@ -260,7 +260,7 @@ function drawDisp(v,steer){const g=dg,kmh=Math.abs(v)*3.6,gear=st.sel==='D'?'D'+
  let gr=g.createLinearGradient(0,0,0,256);gr.addColorStop(0,'#0d1622');gr.addColorStop(1,'#03050a');g.fillStyle=gr;g.fillRect(0,0,500,256);
  function arc(cx,val,max,color,label){g.lineWidth=10;g.strokeStyle='#1c2836';g.beginPath();g.arc(cx,150,95,Math.PI*.8,Math.PI*2.2);g.stroke();g.strokeStyle=color;g.beginPath();g.arc(cx,150,95,Math.PI*.8,Math.PI*(.8+1.4*Math.min(1,val/max)));g.stroke();
   g.fillStyle='#8fa4b8';g.font='16px sans-serif';g.textAlign='center';g.fillText(label,cx,232);}
- arc(110,kmh,240,'#4fb4ff','км/ч');arc(390,rpm,7000,rpm>5500?'#ff5040':'#ff9a30','×1000 об/мин');
+ arc(110,kmh,260,'#4fb4ff','км/ч');arc(390,rpm,7000,rpm>5500?'#ff5040':'#ff9a30','×1000 об/мин');
  g.textAlign='center';g.fillStyle='#fff';g.font='bold 92px sans-serif';g.fillText(Math.round(kmh),250,150);g.font='15px sans-serif';g.fillStyle='#8fa4b8';g.fillText('км/ч',250,172);g.fillStyle='#fff';g.font='bold 22px sans-serif';g.fillText((rpm/1000).toFixed(1),390,205);
  g.fillStyle=st.sel==='R'?'#ff6040':st.sel==='P'?'#ffffff':'#4fb4ff';g.font='bold 72px sans-serif';g.fillText(gear,390,170);g.fillStyle='#8fa4b8';g.font='15px sans-serif';g.fillText('ЛЫТКАРИНО  '+new Date().toTimeString().slice(0,5),250,40);g.fillText(st.road?'SPORT':'ГРУНТ',250,200+12);if(Math.abs(st.vl)>3){g.fillStyle='#ffb020';g.fillText('DSC',250,225);}
  g.fillStyle='#000';g.fillRect(500,0,12,256);
@@ -320,8 +320,8 @@ let AU=null;function audioInit(){if(AU||demo)return;try{const ac=new (window.Aud
 function audioUpd(){if(!AU)return;const t=AU.ac.currentTime,fq=st.rpm/60*3;AU.o1.frequency.setTargetAtTime(fq,t,.03);AU.o2.frequency.setTargetAtTime(fq*.5,t,.03);AU.o3.frequency.setTargetAtTime(fq*2.01,t,.03);
  AU.f.frequency.setTargetAtTime(300+st.thr*1800+st.rpm*.15,t,.05);AU.g.gain.setTargetAtTime(.05+st.thr*.09,t,.05);AU.ng.gain.setTargetAtTime(Math.min(.25,Math.max(0,Math.abs(st.vl)-2.5)*.04),t,.05);}
 // ---------- arcade-sim driving ----------
-const GR=[3.9,2.4,1.62,1.22,.97,.8],FD=3.4,RW=.36,MASS=1900,WB=2.9;
-function torque(rpm){if(rpm>6600)return 0;const x=Math.max(0,Math.min(1,(rpm-1000)/5200));return 330+170*Math.sin(x*Math.PI*.9);}
+const DYNO=Q.includes('dyno');const GR=[5.0,3.2,2.143,1.72,1.314,1.0,.822,.64],FD=3.15,RW=.36,MASS=2200,WB=2.97;// BMW X5 xDrive40i: 280 kW, 540 Nm, ZF 8HP
+function torque(rpm){if(rpm>6600)return 0;if(rpm<1850)return 380+160*Math.max(0,rpm-1000)/850;return Math.min(540,280000/(rpm*Math.PI/30));}
 function step(dt){
  let thrIn=(K.KeyW||K.ArrowUp)?1:T.gas,brkIn=(K.KeyS||K.ArrowDown)?1:T.brk,stIn=(K.KeyA||K.ArrowLeft?1:0)-((K.KeyD&&!K.ShiftLeft&&!K.ShiftRight)||K.ArrowRight?1:0)-T.steer,hb=(K.Space||T.hb)?1:0;
  if(demo){thrIn=Q.includes('full')?1:(st.v<16?1:.35);brkIn=0;stIn=0;hb=0;}
@@ -331,17 +331,17 @@ function step(dt){
  const wantT=thrIn,wantB=brkIn;
  st.thr+=(wantT-st.thr)*Math.min(1,dt*6);st.brk+=(wantB-st.brk)*Math.min(1,dt*8);
  const sr=Math.abs(stIn)>Math.abs(st.steer)?3.5:6;st.steer+=(stIn-st.steer)*Math.min(1,dt*sr);
- st.road=onRoad(st.x,st.z);
+ st.road=DYNO||onRoad(st.x,st.z);
  // gearbox
- const sp=Math.abs(vf);if(st.rev){st.g=0;}else{const rpmG=sp/RW*GR[st.g]*FD*9.549;if(rpmG>6100&&st.g<5){st.g++;st.shift=.25;}else if(st.g>0&&sp/RW*GR[st.g-1]*FD*9.549<4300){st.g--;st.shift=.2;}}
+ const sp=Math.abs(vf);if(st.rev){st.g=0;}else{const rpmG=sp/RW*GR[st.g]*FD*9.549;if(rpmG>6400&&st.g<7){st.g++;st.shift=.15;}else if(st.g>0&&sp/RW*GR[st.g-1]*FD*9.549<(st.thr>.8?5200:2600)){st.g--;st.shift=.12;}}
  const ratio=st.rev?3.5:GR[st.g];let rpm=drv?sp/RW*ratio*FD*9.549:0;rpm=Math.max(rpm,800+st.thr*(drv?(sp<3?2200:0):5200));st.rpm+=(Math.min(6800,rpm)-st.rpm)*Math.min(1,dt*10);
  st.shift=Math.max(0,st.shift-dt);
- let F=torque(st.rpm)*ratio*FD/RW*st.thr*.92*(st.shift>0?.3:1)*(st.road?1:.7);if(st.rev)F=Math.min(F,4000);if(!drv)F=0;
- const roll=(st.road?180:1100)+(st.road?0:6*sp*sp*.1),drag=1.32*vf*vf;
+ let F=torque(st.rpm)*ratio*FD/RW*st.thr*.85*(st.shift>0?0:1);F=Math.min(F,(st.road?.75:.45)*9.81*MASS);if(st.rev)F=Math.min(F,4000);if(!drv)F=0;
+ const roll=(st.road?260:1400)+(st.road?0:.6*sp*sp),drag=.55*vf*vf;
  let a=(st.rev?-F:F)/MASS;a-=Math.sign(vf)*(roll+drag)/MASS;
- const brkF=(st.brk*14000+hb*5000)/MASS*(st.road?1:.6);
+ const brkF=(st.brk*21000+hb*6000)/MASS*(st.road?1:.6);
  const vfOld=vf;vf+=a*dt;if(Math.abs(vf)>.05){const nv=vf-Math.sign(vf)*brkF*dt;vf=Math.sign(nv)!==Math.sign(vf)?0:nv;}else if(!st.thr)vf=0;
- vf=Math.max(-9,Math.min(50.5,vf));if(st.sel==='P'){vf=0;st.vx=st.vz=0;}
+ vf=Math.max(-9,Math.min(250/3.6,vf));if(st.sel==='P'){vf=0;st.vx=st.vz=0;}
  st.along+=(((vf-vfOld)/dt)-st.along)*Math.min(1,dt*4);
  // steering & yaw (speed-dependent, weight transfer, grip)
  const maxA=.6/(1+Math.abs(vf)*.06),delta=st.steer*maxA,wt=Math.max(.75,Math.min(1.3,1-st.along*.035));
@@ -355,7 +355,7 @@ function step(dt){
  // movement + sliding collisions
  const nx=st.x+st.vx*dt,nz=st.z+st.vz*dt;let hitPt=null;
  for(const [ax,bz] of [[.95,2.35],[-.95,2.35],[.95,-2.35],[-.95,-2.35],[.95,0],[-.95,0]]){const px=nx+ax*c2+bz*s2,pz=nz-ax*s2+bz*c2;if(hit(px,pz)){hitPt=[px,pz];break;}}
- let n=null;if(hitPt)n=wallN(hitPt[0],hitPt[1]);
+ let n=null;if(hitPt&&!DYNO)n=wallN(hitPt[0],hitPt[1]);if(DYNO)AI.length=0;
  AI.forEach(o=>{const dx=nx-o.g.position.x,dz=nz-o.g.position.z,d=Math.hypot(dx,dz);if(d<3.4){n=[dx/d,dz/d];}});
  if(n){const vn=st.vx*n[0]+st.vz*n[1];if(vn<0){st.vx-=1.35*vn*n[0];st.vz-=1.35*vn*n[1];st.vx*=.82;st.vz*=.82;}st.x+=n[0]*.08;st.z+=n[1]*.08;st.r*=.5;}
  else{st.x=nx;st.z=nz;}
@@ -365,7 +365,7 @@ function updAI(dt){AI.forEach(a=>{const L=a.o.c[a.o.c.length-1];let ahead=Math.h
  ped.forEach((p,i)=>{const L=p.o.c[p.o.c.length-1];p.s+=p.d*p.v*dt;if(p.s>L-1||p.s<1)p.d*=-1;const q=at(p.o.r,p.o.c,p.s,p.side),t=performance.now()/300+i;
   M.makeRotationY(q[2]+(p.d<0?Math.PI:0)).setPosition(q[0],Math.abs(Math.sin(t))*.05,q[1]);pb.setMatrixAt(i,M);ph.setMatrixAt(i,M);pl.setMatrixAt(i,M);});
  pb.instanceMatrix.needsUpdate=ph.instanceMatrix.needsUpdate=pl.instanceMatrix.needsUpdate=true;}
-if(/ff=(\d+)/.test(Q)){const n=+/ff=(\d+)/.exec(Q)[1];for(let i=0;i<n;i++){step(1/60);if(i%120==0)console.log('T',(i/60).toFixed(0),'kmh',(st.v*3.6).toFixed(0),'g',st.g+1,'rpm',st.rpm|0);}}
+if(/ff=(\d+)/.test(Q)){const n=+/ff=(\d+)/.exec(Q)[1];for(let i=0;i<n;i++){step(1/60);{const k=st.v*3.6;window.__m=window.__m||{};[100,200,250].forEach(x=>{if(k>=x-.05&&!window.__m[x]){window.__m[x]=(i/60).toFixed(2);console.log('REACH',x,'kmh at',window.__m[x],'s');}});if(i%600==0)console.log('T',(i/60).toFixed(0),'kmh',k.toFixed(1),'g',st.g+1);}}}
 let LK=null;{const m=/lm=([^&]+)/.exec(Q);if(m){const n=decodeURIComponent(m[1]),b=C.b.find(b=>b.n&&b.n.includes(n));if(b){let cx=0,cz=0;b.p.forEach(q=>{cx+=q[0];cz+=q[1];});cx/=b.p.length;cz/=b.p.length;const ang=+(/ang=([-\d.]+)/.exec(Q)||[0,0.6])[1];LK=[cx,cz,Math.cos(ang),Math.sin(ang)];}}}
 let last=performance.now(),fr=0;
 function frame(t){const dt=Math.min(0.05,(t-last)/1000)||0.016;last=t;step(dt);updAI(dt);
