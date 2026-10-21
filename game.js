@@ -20,17 +20,32 @@ const grass=tex(cv(256,256,(g,w,h)=>{g.fillStyle='#6b8f4e';g.fillRect(0,0,w,h);f
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(4000,4000),new THREE.MeshLambertMaterial({map:grass}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;S.add(ground);
 function flat(polys,mat,y){polys.forEach(p=>{if(p.length<3)return;const g=new THREE.ShapeGeometry(new THREE.Shape(p.map(q=>new THREE.Vector2(q[0],-q[1]))));g.rotateX(-Math.PI/2);const o=new THREE.Mesh(g,mat);o.position.y=y;o.receiveShadow=true;S.add(o);});}
 (window.SAT||[]).forEach(t=>{const tx=new THREE.TextureLoader().load(t.f);tx.anisotropy=8;const m=new THREE.Mesh(new THREE.PlaneGeometry(t.x1-t.x0,t.z1-t.z0),new THREE.MeshLambertMaterial({map:tx}));m.rotation.x=-Math.PI/2;m.position.set((t.x0+t.x1)/2,0.015,(t.z0+t.z1)/2);m.receiveShadow=true;S.add(m);});
-// ---------- roads ----------
-const asph=(lines)=>cv(128,256,(g,w,h)=>{g.fillStyle='#4a4a4d';g.fillRect(0,0,w,h);noise(g,w,h,.25,3000);if(lines){g.fillStyle='#e8e8e0';g.fillRect(4,0,4,h);g.fillRect(w-8,0,4,h);g.fillRect(w/2-3,0,6,h*.5);}});
-const roadMajor=new THREE.MeshLambertMaterial({map:tex(asph(true)),transparent:true,opacity:.6,depthWrite:false}),roadMinor=new THREE.MeshLambertMaterial({map:tex(asph(false)),transparent:true,opacity:.35,depthWrite:false});
+// ---------- roads (opaque asphalt, world-space UVs so overlaps are seamless) ----------
+const ASZ=512;
+const asphH=cv(ASZ,ASZ,(g,w,h)=>{g.fillStyle='#808080';g.fillRect(0,0,w,h);for(let i=0;i<26000;i++){const v=90+rnd()*80|0;g.fillStyle=`rgb(${v},${v},${v})`;g.fillRect(rnd()*w,rnd()*h,1+rnd()*2,1+rnd()*2);}
+ g.strokeStyle='#303030';g.lineWidth=1.3;for(let i=0;i<9;i++){let x=rnd()*w,y=rnd()*h;g.beginPath();g.moveTo(x,y);for(let k=0;k<14;k++){x+=(rnd()-.5)*30;y+=(rnd()-.5)*30;g.lineTo(x,y);}g.stroke();}});
+const asphC=cv(ASZ,ASZ,(g,w,h)=>{g.fillStyle='#46474a';g.fillRect(0,0,w,h);for(let i=0;i<5;i++){g.fillStyle=`rgba(${rnd()<.5?'30,30,32':'80,80,82'},.35)`;g.fillRect(rnd()*w,rnd()*h,40+rnd()*120,30+rnd()*90);}// patches
+ g.drawImage(asphH,0,0);g.globalCompositeOperation='multiply';g.fillStyle='#5a5b5f';g.fillRect(0,0,w,h);g.globalCompositeOperation='source-over';
+ for(let i=0;i<3;i++){g.fillStyle='rgba(20,20,22,.25)';g.beginPath();g.ellipse(rnd()*w,rnd()*h,20+rnd()*40,10+rnd()*20,rnd()*3,0,6.3);g.fill();}});
+function normFrom(c,str){const w=c.width,h=c.height,src=c.getContext('2d').getImageData(0,0,w,h).data;return cv(w,h,(g)=>{const id=g.createImageData(w,h),d=id.data;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=(y*w+x)*4,l=src[(y*w+(x+w-1)%w)*4],r=src[(y*w+(x+1)%w)*4],u=src[(((y+h-1)%h)*w+x)*4],dn=src[(((y+1)%h)*w+x)*4];
+  let nx=(l-r)/255*str,ny=(u-dn)/255*str,nz=1;const L=Math.hypot(nx,ny,nz);d[i]=(nx/L*.5+.5)*255;d[i+1]=(ny/L*.5+.5)*255;d[i+2]=(nz/L*.5+.5)*255;d[i+3]=255;}g.putImageData(id,0,0);});}
+const maxAn=R.capabilities.getMaxAnisotropy();
+const aT=tex(asphC),aN=tex(normFrom(asphH,2.5)),aR=tex(cv(64,64,(g)=>{g.fillStyle='#e0e0e0';g.fillRect(0,0,64,64);noise(g,64,64,.3,400);}));[aT,aN,aR].forEach(t=>t.anisotropy=maxAn);
+const roadM=new THREE.MeshStandardMaterial({map:aT,normalMap:aN,normalScale:new THREE.Vector2(.6,.6),roughnessMap:aR,roughness:.92,metalness:0,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
 const walkM=new THREE.MeshLambertMaterial({map:tex(cv(128,128,(g,w,h)=>{g.fillStyle='#a3a29c';g.fillRect(0,0,w,h);noise(g,w,h,.2,1500);g.strokeStyle='#8a8983';for(let i=0;i<=w;i+=32){g.beginPath();g.moveTo(0,i);g.lineTo(w,i);g.stroke();}}))});
-function ribbon(list,mat,y,wf,caps){const P=[],U=[];list.forEach(r=>{const h=wf(r)/2;if(h<=0)return;let d=0;for(let i=0;i<r.p.length-1;i++){const a=r.p[i],b=r.p[i+1],dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz)||1,nx=-dz/L*h,nz=dx/L*h,v0=d/8,v1=(d+L)/8;d+=L;
-P.push(a[0]+nx,y,a[1]+nz,b[0]+nx,y,b[1]+nz,b[0]-nx,y,b[1]-nz,a[0]+nx,y,a[1]+nz,b[0]-nx,y,b[1]-nz,a[0]-nx,y,a[1]-nz);U.push(0,v0,0,v1,1,v1,0,v0,1,v1,1,v0);}
-if(caps)r.p.forEach(q=>{for(let k=0;k<10;k++){const a1=k/10*6.283,a2=(k+1)/10*6.283;P.push(q[0],y-.004,q[1],q[0]+Math.cos(a2)*h,y-.004,q[1]+Math.sin(a2)*h,q[0]+Math.cos(a1)*h,y-.004,q[1]+Math.sin(a1)*h);U.push(.5,0,.5,0,.5,0);}});});
-const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(U,2));g.computeVertexNormals();
-const m=new THREE.Mesh(g,mat);m.material.side=THREE.DoubleSide;m.receiveShadow=true;S.add(m);}
+const RS=7;// metres per asphalt tile
+function ribbon(list,mat,y,wf,caps){const P=[];list.forEach(r=>{const h=wf(r)/2;if(h<=0)return;for(let i=0;i<r.p.length-1;i++){const a=r.p[i],b=r.p[i+1],dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz)||1,nx=-dz/L*h,nz=dx/L*h;
+ P.push(a[0]+nx,y,a[1]+nz,b[0]+nx,y,b[1]+nz,b[0]-nx,y,b[1]-nz,a[0]+nx,y,a[1]+nz,b[0]-nx,y,b[1]-nz,a[0]-nx,y,a[1]-nz);}
+ if(caps)r.p.forEach(q=>{for(let k=0;k<16;k++){const a1=k/16*6.283,a2=(k+1)/16*6.283;P.push(q[0],y,q[1],q[0]+Math.cos(a2)*h,y,q[1]+Math.sin(a2)*h,q[0]+Math.cos(a1)*h,y,q[1]+Math.sin(a1)*h);}});});
+ const U=[];for(let i=0;i<P.length;i+=3)U.push(P[i]/RS,P[i+2]/RS);
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(U,2));g.computeVertexNormals();
+ {const n=g.attributes.normal;for(let i=0;i<n.count;i++)n.setXYZ(i,0,1,0);}
+ const m=new THREE.Mesh(g,mat);m.material.side=THREE.DoubleSide;m.receiveShadow=true;S.add(m);return m;}
 const drive=C.r.filter(r=>r.w>=4),major=C.r.filter(r=>r.w>=6),minor=C.r.filter(r=>r.w<6);
-ribbon(major,roadMajor,0.07,r=>r.w,true);ribbon(minor,roadMinor,0.06,r=>r.w,true);
+// all drivable surfaces at one height + same world-UV texture => no z-fighting at overlaps
+ribbon(C.r.filter(r=>r.w>=3),roadM,0.07,r=>r.w,true);
+
 // ---------- buildings ----------
 function facade(o){return cv(512,384,(g,w,h)=>{const fl=128;g.fillStyle=o.base;g.fillRect(0,0,w,h);
  if(o.brick){for(let y=0;y<h;y+=8)for(let x=(y/8%2)*8;x<w;x+=16){const l=o.brick[2]+(rnd()-.5)*8;g.fillStyle=`hsl(${o.brick[0]+rnd()*6},${o.brick[1]}%,${l}%)`;g.fillRect(x,y,15,7);}}
@@ -189,6 +204,26 @@ junc.filter(J=>J.w>=8).sort((a,b)=>b.n-a.n).forEach(J=>{if(LIGHTS.length<22)addL
 function lstate(L,ax,t){const c=((t+L.off)%20+20)%20;const a=c<8?2:c<10?1:0,b=c<10?0:c<18?2:1;return ax?b:a;}// 0 red 1 yellow 2 green
 function updLights(t){LIGHTS.forEach(L=>L.heads.forEach(h=>{const s=lstate(L,h.ax,t);h.ms.forEach(([m,c],k)=>m.color.copy(k===[0,1,2].indexOf(s===0?0:s===1?1:2)?c:new THREE.Color(0x222222)));}));}
 function aiMustStop(x,z,a,t){for(const L of LIGHTS){const dx=L.x-x,dz=L.z-z,d=Math.hypot(dx,dz);if(d<5||d>22)continue;if((dx*Math.sin(a)+dz*Math.cos(a))/d<.8)continue;const ax=Math.abs(Math.sin(a-L.ang))<.5?0:1;if(lstate(L,ax,t)<2)return true;}return false;}
+// ---------- lane markings (decals), stop lines, manholes & drains ----------
+{const P=[];const Y=.078;const quad=(ax,az,ux,uz,len,wd)=>{const nx=-uz*wd/2,nz=ux*wd/2,bx=ax+ux*len,bz=az+uz*len;P.push(ax+nx,Y,az+nz,bx+nx,Y,bz+nz,bx-nx,Y,bz-nz,ax+nx,Y,az+nz,bx-nx,Y,bz-nz,ax-nx,Y,az-nz);};
+ major.forEach(r=>{let ph=0;for(let i=0;i<r.p.length-1;i++){const a=r.p[i],b=r.p[i+1],dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz);if(L<1)continue;const ux=dx/L,uz=dz/L,nx=-uz,nz=ux;
+  const cut=r.w/2+3,t0=isJ(jk(a))?cut:0,t1=isJ(jk(b))?L-cut:L;if(t1-t0<1)continue;
+  if(r.w>=7){let t=t0+((3-ph)%9+9)%9;for(;t<t1;t+=9){const l=Math.min(3,t1-t);if(l>.3)quad(a[0]+ux*t,a[1]+uz*t,ux,uz,l,.12);}}// dashed centre
+  [1,-1].forEach(sd=>{const o=(r.w/2-.35)*sd;quad(a[0]+ux*t0+nx*o,a[1]+uz*t0+nz*o,ux,uz,t1-t0,.12);});// edge lines
+  ph=(ph+L)%9;}});
+ // stop lines at traffic lights: on each approaching major road, right half
+ LIGHTS.forEach(Lt=>{major.forEach(r=>{for(let i=0;i<r.p.length;i++){const q=r.p[i];if(Math.hypot(q[0]-Lt.x,q[1]-Lt.z)>2)continue;[-1,1].forEach(dir=>{const j=i+dir;if(j<0||j>=r.p.length)return;const o=r.p[j],dx=o[0]-q[0],dz=o[1]-q[1],L=Math.hypot(dx,dz);if(L<r.w)return;const ux=dx/L,uz=dz/L,d=r.w/2+3.5;
+   const cx=q[0]+ux*d,cz=q[1]+uz*d,nx=-uz,nz=ux,sx=cx+nx*r.w/4*-1,sz=cz+nz*r.w/4*-1;quad(sx-ux*.2,sz-uz*.2,ux,uz,.4,r.w/2-.4);});}});});
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.computeVertexNormals();
+ const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xf2f2ea,roughness:.6,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3,depthWrite:false}));m.renderOrder=3;m.receiveShadow=true;S.add(m);}
+{const mh=[],dr=[];major.forEach(r=>{for(let i=0;i<r.p.length-1;i++){const a=r.p[i],b=r.p[i+1],dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz);if(L<20)continue;const ux=dx/L,uz=dz/L,nx=-uz,nz=ux;
+  for(let t=10+rnd()*20;t<L-8;t+=35+rnd()*30){const o=(r.w/4)*(rnd()<.5?1:-1);mh.push([a[0]+ux*t+nx*o,a[1]+uz*t+nz*o]);}
+  for(let t=8;t<L-5;t+=25){const o=(r.w/2-.25);dr.push([a[0]+ux*t+nx*o,a[1]+uz*t+nz*o,Math.atan2(ux,uz)]);}}});
+ const mhT=new THREE.CanvasTexture(cv(128,128,(g)=>{g.fillStyle='#2e2c2a';g.beginPath();g.arc(64,64,62,0,6.3);g.fill();g.strokeStyle='#4a4744';g.lineWidth=4;for(let r=14;r<60;r+=12){g.beginPath();g.arc(64,64,r,0,6.3);g.stroke();}for(let k=0;k<8;k++){g.beginPath();g.moveTo(64,64);g.lineTo(64+Math.cos(k*.785)*58,64+Math.sin(k*.785)*58);g.stroke();}}));
+ const drT=new THREE.CanvasTexture(cv(64,128,(g)=>{g.fillStyle='#2a2826';g.fillRect(0,0,64,128);g.fillStyle='#111';for(let y=8;y<120;y+=12)g.fillRect(8,y,48,6);}));
+ const mk=(geo,map,L,rot)=>{if(!L.length)return;const im=new THREE.InstancedMesh(geo,new THREE.MeshStandardMaterial({map,roughness:.5,metalness:.6,transparent:true,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,depthWrite:false}),L.length);im.renderOrder=2;
+  L.forEach((p,i)=>{M.makeRotationY(rot?p[2]:rnd()*6).setPosition(p[0],.079,p[1]);im.setMatrixAt(i,M);});S.add(im);};
+ mk(new THREE.CircleGeometry(.35,20).rotateX(-Math.PI/2),mhT,mh,0);mk(new THREE.PlaneGeometry(.4,.8).rotateX(-Math.PI/2),drT,dr,1);}
 // signs (give way at non-signal junctions) — instanced poles + textured plates
 const signTex=(f)=>new THREE.CanvasTexture(cv(128,128,f));
 const giveT=signTex((g)=>{g.fillStyle='#fff';g.beginPath();g.moveTo(8,14);g.lineTo(120,14);g.lineTo(64,118);g.fill();g.strokeStyle='#d01818';g.lineWidth=14;g.stroke();});
