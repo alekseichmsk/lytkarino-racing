@@ -128,10 +128,15 @@ Object.keys(PHS).forEach(n=>{const t=TXL.load('tx/'+n+'.jpg');t.wrapS=t.wrapT=TH
  const o={map:t};if(hasE){const e=TXL.load('tx/'+n+'_e.jpg');e.wrapS=e.wrapT=THREE.RepeatWrapping;o.emissiveMap=e;o.emissive=new THREE.Color(0xffd9a0);o.emissiveIntensity=0;}
  if(!mobile){const nm=TXL.load('tx/'+n+'_n.jpg');nm.wrapS=nm.wrapT=THREE.RepeatWrapping;o.normalMap=nm;o.normalScale=new THREE.Vector2(.6,.6);o.roughness=.85;o.metalness=0;}
  PH[n]=mobile?new THREE.MeshLambertMaterial(o):new THREE.MeshStandardMaterial(o);if(hasE)PHE.push(PH[n]);});
+const PHX=window.PHX||{};Object.keys(PHX).forEach(n=>{const X=PHX[n];const t=TXL.load('tx/'+n+'.jpg');t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=4;t.encoding=THREE.sRGBEncoding;const e=TXL.load('tx/'+n+'_e.jpg');e.wrapS=e.wrapT=THREE.RepeatWrapping;
+ const o={map:t,emissiveMap:e,emissive:new THREE.Color(0xffd9a0),emissiveIntensity:0};if(!mobile){const nm=TXL.load('tx/'+n+'_n.jpg');nm.wrapS=nm.wrapT=THREE.RepeatWrapping;o.normalMap=nm;o.normalScale=new THREE.Vector2(.5,.5);const rm=TXL.load('tx/'+n+'_r.jpg');rm.wrapS=rm.wrapT=THREE.RepeatWrapping;o.roughnessMap=rm;o.roughness=1;o.metalness=0;}
+ PH[n]=mobile?new THREE.MeshLambertMaterial(o):new THREE.MeshStandardMaterial(o);PHE.push(PH[n]);PHS[n]=X.w;});
+const PHA={};Object.keys(PHX).forEach(n=>(PHX[n].osm||[]).forEach(id=>PHA[id]=n));const PHANCH=[];window.__phx=PHA;
 window.__facadeNight=v=>PHE.forEach(m=>m.emissiveIntensity=v);
 function wallI(m,p,y0,y1,vs,us){const B=bf(m);for(let i=0;i<p.length;i++){const a=p[i],c=p[(i+1)%p.length],L=Math.hypot(c[0]-a[0],c[1]-a[1]);if(L<.05)continue;const nb=Math.max(1,Math.round(L/us));
  B.P.push(a[0],y0,a[1],c[0],y0,c[1],c[0],y1,c[1],a[0],y0,a[1],c[0],y1,c[1],a[0],y1,a[1]);const v0=0,v1=(y1-y0)/vs;B.U.push(0,v0,nb,v0,nb,v1,0,v0,nb,v1,0,v1);}}
-function series(b,p,i){const n=b.n||'';if(b.k=='church'||b.k=='chapel')return null;for(const [re] of LM)if(re.test(n))return null;const k=b.k,A=Math.abs(area(p)),ob=obb(p);const Wd=ob?Math.min(ob.s1-ob.s0,ob.t1-ob.t0):10,Ln=ob?Math.max(ob.s1-ob.s0,ob.t1-ob.t0):10;
+function series(b,p,i){const r0=series0(b,p,i);if(PHA[b.id])return{up:PHA[b.id],l:Math.max(1,b.l||(r0&&r0.l)||1),ent:r0?r0.ent:false,ph:1};if(r0&&!r0.house&&r0.up!='garage_row'&&PHANCH.length){let best=null,bd=500;const c=b.p[0];PHANCH.forEach(a=>{if(a.up!==r0.up||Math.abs(a.l-r0.l)>3)return;const d=Math.hypot(a.x-c[0],a.z-c[1]);if(d<bd){bd=d;best=a;}});if(best)return Object.assign({},r0,{up:best.n,gr:null,ph:1});}return r0;}
+function series0(b,p,i){const n=b.n||'';if(b.k=='church'||b.k=='chapel')return null;for(const [re] of LM)if(re.test(n))return null;const k=b.k,A=Math.abs(area(p)),ob=obb(p);const Wd=ob?Math.min(ob.s1-ob.s0,ob.t1-ob.t0):10,Ln=ob?Math.max(ob.s1-ob.s0,ob.t1-ob.t0):10;
  let l=b.l;const red=/brick/.test(b.m)||/red|#[89a-f][0-9a-f][0-4]/i.test(b.c||'');
  if(k=='garages'||k=='garage')return{up:'garage_row',l:1,h:3};
  if(['industrial','warehouse','service','construction','shed','roof','greenhouse'].includes(k))return null;
@@ -139,13 +144,14 @@ function series(b,p,i){const n=b.n||'';if(b.k=='church'||b.k=='chapel')return nu
  if(!b.lt&&(k=='yes'||k=='apartments'||k=='residential')){if(Ln>=40&&Wd>=9.5&&Wd<=16)l=k=='yes'&&!b.s?5:Math.max(l,5);else return null;}
  let up;if(l>=12)up='panel_p44';else if(l>=6)up='panel_ii49';else if(l>=4)up=red?'khrush_redbrick':(i%4==0?'khrush_redbrick':'khrush_silicate');else up='stalin_cream';
  return{up,l,gr:b.s?'shop_ground':null,ent:l>=4&&!b.s&&(k=='apartments'||k=='residential'||k=='yes')};}
-const entG=[];
+C.b.forEach((b,i)=>{const n=PHA[b.id];if(!n||PHX[n].uniq)return;const r0=series0(b,b.p,i);PHANCH.push({n,x:b.p[0][0],z:b.p[0][1],up:r0?r0.up:'',l:b.l||1});});const entG=[];
 const colG=new THREE.CylinderGeometry(.35,.4,1,10);const colList=[];
 const Gd={},CS=20;
 C.b.forEach((b,i)=>{let p=b.p.slice();{let cx=0,cz=0;p.forEach(q=>{cx+=q[0];cz+=q[1];});CK=Math.floor(cx/p.length/CHUNK)+','+Math.floor(cz/p.length/CHUNK);}if(area(p)>0)p.reverse();// now clockwise in x/z => outward normals
- const SR=series(b,p,i);const o=pick(b,i);let h=Math.max(2.5,b.h);const fm=o.f?FM[o.f]:greyM;
+ const SR=series(b,p,i);if(SR&&SR.ph)(window.__phc=window.__phc||{})[SR.up]=(window.__phc[SR.up]||0)+1;const o=pick(b,i);let h=Math.max(2.5,b.h);const fm=o.f?FM[o.f]:greyM;
  if(SR){const lv=SR.l,fh=SR.up.startsWith('stalin')?3.6:SR.house?3:2.8,gh=SR.gr?4:SR.house?3:3;h=SR.h||(SR.house?lv*3:gh+(lv-1)*fh+.4);
-  if(lv<=1)wallI(PH[SR.gr||SR.up],p,0,h,h,PHS[SR.gr||SR.up]);
+  if(SR.ph){const X=PHX[SR.up];h=lv*X.fh+.4;wallI(PH[SR.up],p,0,lv*X.fh,X.fh*X.f,X.w);wall(plinth,p,lv*X.fh,h,3,12);}
+  else if(lv<=1)wallI(PH[SR.gr||SR.up],p,0,h,h,PHS[SR.gr||SR.up]);
   else{wallI(PH[SR.gr||SR.up],p,0,gh,gh,PHS[SR.gr||SR.up]);wallI(PH[SR.up],p,gh,gh+(lv-1)*fh,fh,PHS[SR.up]);if(h>gh+(lv-1)*fh)wall(plinth,p,gh+(lv-1)*fh,h,3,12);}
   if(SR.ent)entG.push([p,lv,h]);}
  else if(o.glass){wall(glassM,p,0,Math.min(h,b.l>1?3.5:h),3.5,8);if(h>3.5)wall(fm,p,3.5,h,9,12);}
@@ -368,7 +374,7 @@ PT("pre-landmarks");{const LMs=window.LM||[];const white=new THREE.MeshLambertMa
  '<li><b>Движок</b>: three.js r149 (MIT). Звук V8 синтезирован Web Audio.</li></ul>';
  document.body.appendChild(d);const b=document.createElement('b');b.id='bCr';b.title='Источники и авторы';b.textContent='ⓘ';const fs=document.getElementById('fs');if(fs&&fs.parentNode)fs.parentNode.insertBefore(b,fs);
  const tg=e=>{e&&e.stopPropagation();d.style.display=d.style.display=='none'?'block':'none';};b.addEventListener('click',tg);b.addEventListener('touchend',e=>{e.preventDefault();tg(e);});d.querySelector('#crx').addEventListener('click',tg);if(/credits/.test(Q))d.style.display='block';}
-PT("pre-furn");const FURNCH=[];{const FS0=S.children.length;const F=window.FURN;if(F&&!/nofurn/.test(Q)){const mergeG=(L)=>{const A={position:[],normal:[]};L.forEach(g=>{g=g.index?g.toNonIndexed():g;A.position.push(...g.attributes.position.array);A.normal.push(...g.attributes.normal.array);});const o=new THREE.BufferGeometry();o.setAttribute('position',new THREE.Float32BufferAttribute(A.position,3));o.setAttribute('normal',new THREE.Float32BufferAttribute(A.normal,3));return o;};
+PT("photo facades "+JSON.stringify(window.__phc||{}));PT("pre-furn");const FURNCH=[];{const FS0=S.children.length;const F=window.FURN;if(F&&!/nofurn/.test(Q)){const mergeG=(L)=>{const A={position:[],normal:[]};L.forEach(g=>{g=g.index?g.toNonIndexed():g;A.position.push(...g.attributes.position.array);A.normal.push(...g.attributes.normal.array);});const o=new THREE.BufferGeometry();o.setAttribute('position',new THREE.Float32BufferAttribute(A.position,3));o.setAttribute('normal',new THREE.Float32BufferAttribute(A.normal,3));return o;};
 const M4=new THREE.Matrix4(),Qt=new THREE.Quaternion(),V=new THREE.Vector3(),Sc=new THREE.Vector3(),Y=new THREE.Vector3(0,1,0);
 const segs=(list,step)=>{const o=[];list.forEach(p=>{for(let i=0;i<p.length-1;i++){const a=p[i],b=p[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<.3||L>400)continue;if(!step){o.push([a,b,L]);continue;}const n=Math.max(1,Math.round(L/step));for(let k=0;k<n;k++){const t0=k/n,t1=(k+1)/n;o.push([[a[0]+(b[0]-a[0])*t0,a[1]+(b[1]-a[1])*t0],[a[0]+(b[0]-a[0])*t1,a[1]+(b[1]-a[1])*t1],L/n]);}}});return o;};
 const setSeg=(im,i,s,h,w,y)=>{const a=s[0],b=s[1];Qt.setFromAxisAngle(Y,Math.atan2(-(b[1]-a[1]),b[0]-a[0]));M4.compose(V.set((a[0]+b[0])/2,y,(a[1]+b[1])/2),Qt,Sc.set(s[2]+.05,h,w));im.setMatrixAt(i,M4);};
