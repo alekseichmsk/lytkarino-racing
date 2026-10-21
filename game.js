@@ -253,7 +253,7 @@ const MS=0.55,mapC=cv(1800,1800,(g,w,h)=>{g.fillStyle='#16202a';g.fillRect(0,0,w
  C.g.forEach(p=>{g.fillStyle='#1f3a28';g.beginPath();p.forEach((q,i)=>g[i?'lineTo':'moveTo'](w/2+q[0]*MS,h/2+q[1]*MS));g.fill();});
  C.b.forEach(b=>{g.fillStyle='#34404c';g.beginPath();b.p.forEach((q,i)=>g[i?'lineTo':'moveTo'](w/2+q[0]*MS,h/2+q[1]*MS));g.fill();});
  C.r.forEach(r=>{if(r.w<4)return;g.strokeStyle=r.w>=8?'#e8b060':'#9aa8b4';g.lineWidth=Math.max(2,r.w*MS);g.beginPath();r.p.forEach((q,i)=>g[i?'lineTo':'moveTo'](w/2+q[0]*MS,h/2+q[1]*MS));g.stroke();});});
-function drawDisp(v,steer){const g=dg,kmh=Math.abs(v)*3.6,gear=st.rev?'R':(Math.abs(v)<.2&&st.thr<.05?'P':'D'+(st.g+1)),rpm=st.rpm;
+function drawDisp(v,steer){const g=dg,kmh=Math.abs(v)*3.6,gear=st.sel==='D'?'D'+(st.g+1):st.sel,rpm=st.rpm;
  g.fillStyle='#05070a';g.fillRect(0,0,1024,256);
  // cluster
  let gr=g.createLinearGradient(0,0,0,256);gr.addColorStop(0,'#0d1622');gr.addColorStop(1,'#03050a');g.fillStyle=gr;g.fillRect(0,0,500,256);
@@ -271,7 +271,7 @@ function drawDisp(v,steer){const g=dg,kmh=Math.abs(v)*3.6,gear=st.rev?'R':(Math.
 // ---------- spawn ----------
 let best=null,bl=1e9;major.forEach(r=>{for(let i=0;i<r.p.length-1;i++){const a=r.p[i],b=r.p[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]),D=Math.hypot(a[0],a[1]);if(L>60&&D<bl){bl=D;best=[a,b];}}});
 const h0=Math.atan2(best[1][0]-best[0][0],best[1][1]-best[0][1]),off=1.6;
-const st={x:best[0][0]+Math.sin(h0)*8-Math.cos(h0)*off,z:best[0][1]+Math.cos(h0)*8+Math.sin(h0)*off,h:h0,vx:0,vz:0,r:0,v:0,vl:0,steer:0,thr:0,brk:0,g:0,rpm:800,rev:false,shift:0,along:0,alat:0,road:true,hb:0};
+const st={x:best[0][0]+Math.sin(h0)*8-Math.cos(h0)*off,z:best[0][1]+Math.cos(h0)*8+Math.sin(h0)*off,h:h0,vx:0,vz:0,r:0,v:0,vl:0,steer:0,thr:0,brk:0,g:0,rpm:800,rev:false,shift:0,along:0,alat:0,road:true,hb:0,sel:'D'};
 const start=JSON.parse(JSON.stringify(st));
 // road lookup grid (for grip)
 const RG={};drive.concat(C.r.filter(r=>r.w>=3&&r.w<4)).forEach(r=>{for(let i=0;i<r.p.length-1;i++){const a=r.p[i],b=r.p[i+1];const seg=[a,b,r.w/2+.8];const xs=[a[0],b[0]],zs=[a[1],b[1]];
@@ -281,12 +281,30 @@ function onRoad(x,z){const l=RG[Math.floor(x/20)+','+Math.floor(z/20)];return !!
 function wallN(x,z){const l=Gd[Math.floor(x/CS)+','+Math.floor(z/CS)]||[];let bd=1e9,n=null;l.forEach(p=>{for(let i=0;i<p.length;i++){const d=segD(x,z,p[i],p[(i+1)%p.length]);if(d[0]<bd){bd=d[0];n=[x-d[1],z-d[2]];}}});
  if(!n)return null;const L=Math.hypot(n[0],n[1])||1;n=[n[0]/L,n[1]/L];return hit(x,z)?[-n[0],-n[1]]:n;}
 // ---------- input ----------
-const K={};addEventListener('keydown',e=>{K[e.code]=1;if(e.code=='KeyR')Object.assign(st,JSON.parse(JSON.stringify(start)));if(e.code=='Space')e.preventDefault();audioInit();});addEventListener('keyup',e=>K[e.code]=0);
-const T={steer:0,gas:0,brk:0,hb:0};
-if(mobile){document.querySelectorAll('.t').forEach(e=>e.style.display='flex');const joy=document.getElementById('joy'),kn=document.getElementById('knob');
- joy.addEventListener('touchmove',e=>{e.preventDefault();const r=joy.getBoundingClientRect(),t=e.targetTouches[0];const dx=Math.max(-1,Math.min(1,(t.clientX-r.left-r.width/2)/(r.width/2.5)));T.steer=dx;kn.style.left=(r.width/2-25)+dx*r.width/3+'px';},{passive:false});
- joy.addEventListener('touchend',()=>{T.steer=0;kn.style.left='';});
- [['gas','gas'],['brk','brk'],['hb','hb']].forEach(([id,k])=>{const el=document.getElementById(id);el.addEventListener('touchstart',e=>{e.preventDefault();T[k]=1;audioInit();},{passive:false});el.addEventListener('touchend',()=>T[k]=0);});}
+const K={};addEventListener('keydown',e=>{K[e.code]=1;if(e.code=='Backspace')Object.assign(st,JSON.parse(JSON.stringify(start)));if(e.code=='Space')e.preventDefault();audioInit();});addEventListener('keyup',e=>K[e.code]=0);
+const T={steer:0,gas:0,brk:0,hb:0};let swAng=0,swHeld=false;
+function setGear(g){const sp=Math.abs(st.v)*3.6;if(g===st.sel)return;if(sp>3&&!(g==='N'))return flash();st.sel=g;st.rev=g==='R';if(g!=='D')st.g=0;updGsel();}
+function flash(){const e=document.getElementById('gsel');e.style.outline='2px solid #f44';setTimeout(()=>e.style.outline='',300);}
+function updGsel(){document.querySelectorAll('#gsel b').forEach(b=>b.classList.toggle('a',b.dataset.g===st.sel));}
+addEventListener('keydown',e=>{if(e.code=='KeyP')setGear('P');if(e.code=='KeyR')setGear('R');if(e.code=='KeyN')setGear('N');if(e.code=='KeyE'||(e.code=='KeyD'&&e.shiftKey))setGear('D');});
+if(mobile||Q.includes('touch')){const tc=document.getElementById('tc');tc.classList.add('on');document.body.classList.add('tch');
+ const sw=document.getElementById('sw'),swg=document.getElementById('swg');let sid=null,last=0;
+ const ang=(t)=>{const r=sw.getBoundingClientRect();return Math.atan2(t.clientY-(r.top+r.height/2),t.clientX-(r.left+r.width/2))*180/Math.PI;};
+ const find=(e,id)=>{for(const t of e.changedTouches)if(t.identifier===id)return t;return null;};
+ sw.addEventListener('touchstart',e=>{e.preventDefault();audioInit();const t=e.changedTouches[0];sid=t.identifier;last=ang(t);swHeld=true;},{passive:false});
+ sw.addEventListener('touchmove',e=>{e.preventDefault();const t=find(e,sid);if(!t)return;const a=ang(t);let d=a-last;if(d>180)d-=360;if(d<-180)d+=360;last=a;swAng=Math.max(-450,Math.min(450,swAng+d));},{passive:false});
+ const swEnd=e=>{if(find(e,sid)){sid=null;swHeld=false;}};sw.addEventListener('touchend',swEnd);sw.addEventListener('touchcancel',swEnd);
+ window.__swg=swg;
+ [['gasP','gas'],['brkP','brk']].forEach(([id,k])=>{const el=document.getElementById(id),bar=el.querySelector('i');let pid=null;
+  const upd=t=>{const r=el.getBoundingClientRect();const v=Math.max(.35,Math.min(1,1-(t.clientY-r.top)/r.height+.15));T[k]=v;bar.style.height=(v*100)+'%';};
+  el.addEventListener('touchstart',e=>{e.preventDefault();audioInit();const t=e.changedTouches[0];pid=t.identifier;upd(t);},{passive:false});
+  el.addEventListener('touchmove',e=>{e.preventDefault();const t=find(e,pid);if(t)upd(t);},{passive:false});
+  const end=e=>{if(find(e,pid)){pid=null;T[k]=0;bar.style.height='0';}};el.addEventListener('touchend',end);el.addEventListener('touchcancel',end);});
+ const hbE=document.getElementById('hb');hbE.addEventListener('touchstart',e=>{e.preventDefault();T.hb=1;hbE.style.background='#c33';},{passive:false});const hbEnd=()=>{T.hb=0;hbE.style.background='';};hbE.addEventListener('touchend',hbEnd);hbE.addEventListener('touchcancel',hbEnd);
+ document.querySelectorAll('#gsel b').forEach(b=>b.addEventListener('touchstart',e=>{e.preventDefault();setGear(b.dataset.g);},{passive:false}));
+}
+updGsel();{const m=/swa=(-?\d+)/.exec(Q);if(m){swAng=+m[1];swHeld=true;}}
+function swTick(dt){if(!swHeld)swAng*=Math.exp(-dt*5);if(Math.abs(swAng)<.3&&!swHeld)swAng=0;T.steer=swAng/450;if(window.__swg)window.__swg.setAttribute('transform','rotate('+swAng.toFixed(1)+')');}
 // ---------- engine sound (WebAudio) ----------
 let AU=null;function audioInit(){if(AU||demo)return;try{const ac=new (window.AudioContext||window.webkitAudioContext)();const o1=ac.createOscillator(),o2=ac.createOscillator(),o3=ac.createOscillator(),f=ac.createBiquadFilter(),g=ac.createGain();
  o1.type='sawtooth';o2.type='square';o3.type='triangle';f.type='lowpass';f.Q.value=4;g.gain.value=0;[o1,o2,o3].forEach(o=>{o.connect(f);o.start();});f.connect(g);g.connect(ac.destination);
@@ -298,25 +316,25 @@ function audioUpd(){if(!AU)return;const t=AU.ac.currentTime,fq=st.rpm/60*3;AU.o1
 const GR=[3.9,2.4,1.62,1.22,.97,.8],FD=3.4,RW=.36,MASS=1900,WB=2.9;
 function torque(rpm){if(rpm>6600)return 0;const x=Math.max(0,Math.min(1,(rpm-1000)/5200));return 330+170*Math.sin(x*Math.PI*.9);}
 function step(dt){
- let thrIn=(K.KeyW||K.ArrowUp||T.gas)?1:0,brkIn=(K.KeyS||K.ArrowDown||T.brk)?1:0,stIn=(K.KeyA||K.ArrowLeft?1:0)-(K.KeyD||K.ArrowRight?1:0)-T.steer,hb=(K.Space||T.hb)?1:0;
+ let thrIn=(K.KeyW||K.ArrowUp)?1:T.gas,brkIn=(K.KeyS||K.ArrowDown)?1:T.brk,stIn=(K.KeyA||K.ArrowLeft?1:0)-((K.KeyD&&!K.ShiftLeft&&!K.ShiftRight)||K.ArrowRight?1:0)-T.steer,hb=(K.Space||T.hb)?1:0;
  if(demo){thrIn=Q.includes('full')?1:(st.v<16?1:.35);brkIn=0;stIn=0;hb=0;}
  const s=Math.sin(st.h),c=Math.cos(st.h);let vf=st.vx*s+st.vz*c,vl=st.vx*c-st.vz*s;
  // reverse logic
- if(!st.rev&&brkIn&&!thrIn&&vf<.5)st.rev=true;if(st.rev&&thrIn&&vf>-.5)st.rev=false;
- const wantT=st.rev?brkIn:thrIn,wantB=st.rev?thrIn:brkIn;
+ swTick(dt);st.rev=st.sel==='R';const drv=st.sel==='D'||st.sel==='R';
+ const wantT=thrIn,wantB=brkIn;
  st.thr+=(wantT-st.thr)*Math.min(1,dt*6);st.brk+=(wantB-st.brk)*Math.min(1,dt*8);
  const sr=Math.abs(stIn)>Math.abs(st.steer)?3.5:6;st.steer+=(stIn-st.steer)*Math.min(1,dt*sr);
  st.road=onRoad(st.x,st.z);
  // gearbox
  const sp=Math.abs(vf);if(st.rev){st.g=0;}else{const rpmG=sp/RW*GR[st.g]*FD*9.549;if(rpmG>6100&&st.g<5){st.g++;st.shift=.25;}else if(st.g>0&&sp/RW*GR[st.g-1]*FD*9.549<4300){st.g--;st.shift=.2;}}
- const ratio=st.rev?3.5:GR[st.g];let rpm=sp/RW*ratio*FD*9.549;rpm=Math.max(rpm,800+st.thr*(sp<3?2200:0));st.rpm+=(Math.min(6800,rpm)-st.rpm)*Math.min(1,dt*10);
+ const ratio=st.rev?3.5:GR[st.g];let rpm=drv?sp/RW*ratio*FD*9.549:0;rpm=Math.max(rpm,800+st.thr*(drv?(sp<3?2200:0):5200));st.rpm+=(Math.min(6800,rpm)-st.rpm)*Math.min(1,dt*10);
  st.shift=Math.max(0,st.shift-dt);
- let F=torque(st.rpm)*ratio*FD/RW*st.thr*.92*(st.shift>0?.3:1)*(st.road?1:.7);if(st.rev)F=Math.min(F,4000);
+ let F=torque(st.rpm)*ratio*FD/RW*st.thr*.92*(st.shift>0?.3:1)*(st.road?1:.7);if(st.rev)F=Math.min(F,4000);if(!drv)F=0;
  const roll=(st.road?180:1100)+(st.road?0:6*sp*sp*.1),drag=1.32*vf*vf;
  let a=(st.rev?-F:F)/MASS;a-=Math.sign(vf)*(roll+drag)/MASS;
  const brkF=(st.brk*14000+hb*5000)/MASS*(st.road?1:.6);
  const vfOld=vf;vf+=a*dt;if(Math.abs(vf)>.05){const nv=vf-Math.sign(vf)*brkF*dt;vf=Math.sign(nv)!==Math.sign(vf)?0:nv;}else if(!st.thr)vf=0;
- vf=Math.max(-9,Math.min(50.5,vf));
+ vf=Math.max(-9,Math.min(50.5,vf));if(st.sel==='P'){vf=0;st.vx=st.vz=0;}
  st.along+=(((vf-vfOld)/dt)-st.along)*Math.min(1,dt*4);
  // steering & yaw (speed-dependent, weight transfer, grip)
  const maxA=.6/(1+Math.abs(vf)*.06),delta=st.steer*maxA,wt=Math.max(.75,Math.min(1.3,1-st.along*.035));
