@@ -766,11 +766,11 @@ function step(dt){
  const mu=st.road?1.0:.62,GG=9.81,AA=1.45,BB=1.525,LL=AA+BB,HC=.62,IZ=4300,DS=Math.max(MODE.dsc,.4);
  const maxA=.62/(1+Math.abs(vf)*.045),delta=st.steer*maxA;
  const pac=x=>{const bx=9*x;return Math.sin(1.45*Math.atan(bx-.3*(bx-Math.atan(bx))));};
- const rearSplit=st.mode==2?.8:.6;let Fd=drv?(st.rev?-Math.min(Fraw,6000):Fraw)*(st.on?1:0):0;
+ const rearSplit=st.mode==2?.8:.6;let Fd=drv?(st.rev?-Math.min(Fraw,6000)*Math.max(0,Math.min(1,(20/3.6+vf)/1.5)):Fraw)*(st.on?1:0):0;
  let dCut=1,u=vf,v=vl,r=st.r,ax=st.along||0,spinR=0,slipMax=0,beta=0;const NS=4,hh=dt/NS;st.abs=0;st.tc=0;st.dsc=0;st.lock=0;
  for(let k=0;k<NS;k++){
   const Fzf=MASS*GG*BB/LL-MASS*ax*HC/LL,Fzr=MASS*GG*AA/LL+MASS*ax*HC/LL,Ff=mu*Math.max(800,Fzf),Fr=mu*Math.max(800,Fzr);
-  const den=Math.max(Math.abs(u),3),sgu=u<-.1?-1:1;const af=delta-Math.atan2((v+AA*r)*sgu,den),ar=-Math.atan2((v-BB*r)*sgu,den);
+  const den=Math.max(Math.abs(u),3),sgu=u<-.1?-1:1;const af=sgu*delta-Math.atan2(v+AA*r,den),ar=-Math.atan2(v-BB*r,den);/* lateral force always opposes contact-patch lateral velocity; valid for reverse */
   let Fxf=Fd*dCut*(1-rearSplit),Fxr=Fd*dCut*rearSplit;const bT=st.brk*36000;let Bf=bT*.62,Br=bT*.38;let lockF=false,lockR=!!hb;
   {const cor=Math.abs(delta)>.02||Math.abs(beta)>.03;if(st.absOn){const kf=cor?.82:.95,kr=cor?.62:.8;if(Bf>Ff*kf){Bf=Ff*kf*(.92+.08*Math.random());st.abs=1;}if(Br>Fr*kr){Br=Fr*kr;st.abs=1;}}else{if(Bf>Ff){lockF=true;Bf=Ff*.7;st.lock=1;}if(Br>Fr*.8)Br=Fr*.8;/* proportioning valve: rear never locks from pedal */}}
   if(lockR)Br=hb&&!st.brk?Fr*.55:Fr*.7;const sg=Math.abs(u)>.15?Math.sign(u):0;Fxf-=Bf*sg;Fxr-=Br*sg;
@@ -779,7 +779,7 @@ function step(dt){
   let Fyf=Ff*pac(af),Fyr=Fr*pac(ar);if(lockF)Fyf*=.08;if(lockR)Fyr*=.5;
   Fyf*=Math.max(.15,Math.sqrt(Math.max(0,1-(Fxf/Ff)**2)));Fyr*=Math.max(.1,Math.sqrt(Math.max(0,1-(Fxr/Fr)**2)));if(sR)Fyr*=1-.4*sR;
   let Mz=0;beta=Math.atan2(v,Math.max(Math.abs(u),1));
-  if(st.dscOn&&Math.abs(u)>3&&!hb){const rLim=mu*GG*.85/Math.max(Math.abs(u),3),rT=Math.max(-rLim,Math.min(rLim,u*Math.tan(delta)/LL)),er=r-rT;if(Math.abs(beta)>.07||Math.abs(er)>.2){st.dsc=1;Mz=-(er*8-beta*14)*IZ*DS;dCut=Math.max(.15,1-DS*Math.min(1,Math.abs(beta)*8+Math.abs(er)));}}
+  if(st.dscOn&&u>3&&!hb){const rLim=mu*GG*.85/Math.max(Math.abs(u),3),rT=Math.max(-rLim,Math.min(rLim,u*Math.tan(delta)/LL)),er=r-rT;if(Math.abs(beta)>.07||Math.abs(er)>.2){st.dsc=1;Mz=-(er*8-beta*14)*IZ*DS;dCut=Math.max(.15,1-DS*Math.min(1,Math.abs(beta)*8+Math.abs(er)));}}
   if(!st.dscOn&&u>5&&Math.abs(beta)>(hb?.25:.1)){const rEq=-Math.sign(beta)*mu*GG*.8/Math.max(Math.hypot(u,v),5),kk=6+25*Math.max(0,Math.abs(beta)-.4);Mz-=IZ*(r-rEq)*kk*Math.min(1,(Math.abs(beta)-.1)*6);}
   const drag=.55*u*Math.abs(u),roll=Math.abs(u)>.05?(st.road?260:1400)*Math.sign(u):0,cd=Math.cos(delta),sd=Math.sin(delta);
   const cx=lockF?1:cd,sx=lockF?0:sd;const du=(Fxf*cx-Fyf*sd+Fxr-drag-roll)/MASS+v*r,dv=(Fyf*cd+Fxf*sx+Fyr)/MASS-u*r,dr=(AA*(Fyf*cd+Fxf*sx)-BB*Fyr+Mz)/IZ;
@@ -924,6 +924,9 @@ function fxTick(dt){const s=Math.sin(st.h),c=Math.cos(st.h),sl=st.slip||0;const 
 // A/B physics tests: ?tst=brake|brakest|launch|dsc  &aid=0/1
 function tstScript(dt){tT+=dt;if(tT<.05){st.mode=1;st.absOn=st.tcOn=st.dscOn=AID;}const k=st.v*3.6;let thr=0,br=0,steer=0;
  if(TST==='launch'){thr=1;if(/m0/.test(Q))st.mode=0;tSpin+=st.spin||0;tSpinN++;if(st.dsc)tLog++;if(st.tc)tLockN++;if(k>=100&&!tPh){tPh=1;console.log('TEST launch aid',AID,'0-100',tT.toFixed(2),'avg spin',(tSpin/tSpinN).toFixed(2),'dscFrames',tLog,'tcFrames',tLockN,'mode',st.mode);}return{thr,br,steer};}
+ if(TST==='rev'){const RS=parseFloat((Q.match(/rs=(-?[\d.]+)/)||[])[1]||0);if(st.sel!=='R'){st.on=true;setGear('R');tX0=st.x;tZ0=st.z;tH0=st.h;}thr=tT<6?.6:0;br=tT>=6?1:0;steer=tT>1?RS:0;const sn=Math.sin(st.h),cs=Math.cos(st.h),vf=st.vx*sn+st.vz*cs,vl=st.vx*cs-st.vz*sn;tMax=Math.max(tMax,Math.abs(vl));tSpin=Math.min(tSpin,vf);
+  if(tT>8&&!tPh){tPh=1;let dh=st.h-tH0;dh=Math.atan2(Math.sin(dh),Math.cos(dh));const R=Math.abs(dh)>.05?(Math.hypot(st.x-tX0,st.z-tZ0)/2/Math.sin(Math.abs(dh)/2)):0;console.log('TEST rev steer',RS,'aid',AID,'minVf kmh',(tSpin*3.6).toFixed(1),'heading',(dh*57.3).toFixed(1),'deg maxLat',tMax.toFixed(2),'m/s maxbeta',((tLog||0)*57.3).toFixed(1),'dist',Math.hypot(st.x-tX0,st.z-tZ0).toFixed(1),'yaw',st.r.toFixed(3),'dscF',tLockN,'R',R.toFixed(1));}
+  if(st.dsc)tLockN++;tLog=Math.max(tLog,Math.abs(Math.atan2(vl,Math.max(Math.abs(vf),1))));return{thr,br,steer};}
  if(tPh==0){thr=1;if(k>=(TST==='dsc'?80:100)){tPh=1;tT=0;tX0=st.x;tZ0=st.z;tH0=st.h;}return{thr,br,steer};}
  if(TST==='brake'||TST==='brakest'){br=1;if(tT<.02&&/kick/.test(Q))st.r=.08;steer=TST==='brakest'?.6:0;if(st.lock)tLockN++;if(st.abs)tAbsN++;tMax=Math.max(tMax,Math.abs(st.beta||0));
   if(tT>8&&tPh==1&&!tLog){tLog=1;console.log('TEST stuck kmh',k.toFixed(1),'brk',st.brk,'thr',st.thr,'sel',st.sel,'g',st.g,'rpm',st.rpm|0);}if(Math.abs(st.v)<.3&&tPh==1){tPh=2;let dh=st.h-tH0;dh=Math.atan2(Math.sin(dh),Math.cos(dh));console.log('TEST',TST,'aid',AID,'dist',Math.hypot(st.x-tX0,st.z-tZ0).toFixed(1),'m time',tT.toFixed(2),'heading change',(dh*57.3).toFixed(1),'deg maxbeta',(tMax*57.3).toFixed(1),'lockFrames',tLockN,'absFrames',tAbsN);}return{thr,br,steer};}
