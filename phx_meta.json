@@ -53,5 +53,66 @@
    113608710
   ],
   "uniq": 1
+ },
+ "pano_vtb_stolichki_pervomayskaya_2.jpg": {
+  "key": "vtb_perv2",
+  "floors": 6,
+  "fh": 3.0,
+  "addr": "Первомайская 2 (ВТБ, Столички)",
+  "osm": [
+   138298669
+  ],
+  "uniq": 1,
+  "signs": 1
+ },
+ "pano_gorzdrav_kommunisticheskaya_58.jpg": {
+  "key": "gz_komm58",
+  "floors": 1,
+  "fh": 4.0,
+  "addr": "Коммунистическая 58 (Горздрав) — первый этаж",
+  "osm": [
+   229334868
+  ],
+  "uniq": 1,
+  "ground": 1,
+  "crop": [
+   0.5,
+   1.0
+  ],
+  "signs": 1
+ },
+ "pano_gorzdrav_medeya_sovetskaya_14a.jpg": {
+  "key": "gz_sov14a",
+  "floors": 3,
+  "fh": 3.2,
+  "addr": "Советская 14А (Горздрав, Медея)",
+  "osm": [
+   1414903617
+  ],
+  "uniq": 1,
+  "signs": 1
+ },
+ "pano_teremok_rigla_parkovaya_s2.jpg": {
+  "key": "teremok_park2",
+  "floors": 1,
+  "fh": 4.6,
+  "addr": "Парковая 2 (Теремок, Ригла)",
+  "osm": [
+   203153319
+  ],
+  "uniq": 1,
+  "signs": 1
+ },
+ "pano_pionerskaya_3.jpg": {
+  "key": "pion3",
+  "floors": 3,
+  "fh": 3.4,
+  "addr": "Пионерская 3",
+  "osm": [
+   232959170
+  ]
+ },
+ "pano_dk_mir_gorbacheva_2a.jpg": {
+  "skip": 1
  }
 }
