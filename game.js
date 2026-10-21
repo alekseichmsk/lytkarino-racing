@@ -131,7 +131,7 @@ Object.keys(PHS).forEach(n=>{const t=TXL.load('tx/'+n+'.jpg');t.wrapS=t.wrapT=TH
 window.__facadeNight=v=>PHE.forEach(m=>m.emissiveIntensity=v);
 function wallI(m,p,y0,y1,vs,us){const B=bf(m);for(let i=0;i<p.length;i++){const a=p[i],c=p[(i+1)%p.length],L=Math.hypot(c[0]-a[0],c[1]-a[1]);if(L<.05)continue;const nb=Math.max(1,Math.round(L/us));
  B.P.push(a[0],y0,a[1],c[0],y0,c[1],c[0],y1,c[1],a[0],y0,a[1],c[0],y1,c[1],a[0],y1,a[1]);const v0=0,v1=(y1-y0)/vs;B.U.push(0,v0,nb,v0,nb,v1,0,v0,nb,v1,0,v1);}}
-function series(b,p,i){const n=b.n||'';for(const [re] of LM)if(re.test(n))return null;const k=b.k,A=Math.abs(area(p)),ob=obb(p);const Wd=ob?Math.min(ob.s1-ob.s0,ob.t1-ob.t0):10,Ln=ob?Math.max(ob.s1-ob.s0,ob.t1-ob.t0):10;
+function series(b,p,i){const n=b.n||'';if(b.k=='church'||b.k=='chapel')return null;for(const [re] of LM)if(re.test(n))return null;const k=b.k,A=Math.abs(area(p)),ob=obb(p);const Wd=ob?Math.min(ob.s1-ob.s0,ob.t1-ob.t0):10,Ln=ob?Math.max(ob.s1-ob.s0,ob.t1-ob.t0):10;
  let l=b.l;const red=/brick/.test(b.m)||/red|#[89a-f][0-9a-f][0-4]/i.test(b.c||'');
  if(k=='garages'||k=='garage')return{up:'garage_row',l:1,h:3};
  if(['industrial','warehouse','service','construction','shed','roof','greenhouse'].includes(k))return null;
