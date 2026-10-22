@@ -1117,15 +1117,17 @@ function buildWS(){const cx=XM.cab;let W8=null;cx.traverse(q=>{if(q.isMesh&&q.na
  const Wm=u1-u0,Hm=v1-v0,pos=[],uv=[];tri.forEach(q=>{const r=q.clone().addScaledVector(Nn,-.006);pos.push(r.x,r.y,r.z);uv.push((q.dot(h)-u0)/Wm,(q.dot(v)-v0)/Hm);});
  const gg=new THREE.BufferGeometry();gg.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));gg.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
  const CW=mobile?384:640,CH=Math.round(CW*Hm/Wm),dc=cv(CW,CH,()=>{}),dg=dc.getContext('2d'),dt=new THREE.CanvasTexture(dc);dt.encoding=THREE.sRGBEncoding;
- const ws=new THREE.Mesh(gg,new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,uniforms:{map:{value:dt},uSky:{value:new THREE.Color(.6,.65,.7)},uGnd:{value:new THREE.Color(.08,.09,.1)},uK:{value:1}},
+ const ws=new THREE.Mesh(gg,new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,uniforms:{map:{value:dt},uSky:{value:new THREE.Color(.6,.65,.7)},uGnd:{value:new THREE.Color(.08,.09,.1)},uK:{value:1},uFB:{value:null},uHas:{value:0},uRes:{value:new THREE.Vector2(1,1)}},toneMapped:false,fog:false,
   vertexShader:'varying vec2 vU;void main(){vU=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-  fragmentShader:`uniform sampler2D map;uniform vec3 uSky,uGnd;uniform float uK;varying vec2 vU;void main(){vec4 c=texture2D(map,vU);float a=clamp(c.a*2.2-.35,0.,1.);if(a<.01)discard;
-   vec2 n=(vec2(c.g,c.r)-.5)*2.;float th=c.b;
-   // fake refraction: a bead shows the world upside-down: sky at its bottom, ground at its top
-   float sk=clamp(.5+n.y*.9,0.,1.);vec3 col=mix(uGnd,uSky,sk);
-   float rim=smoothstep(.55,.95,length(n));col*=1.-rim*.75;
-   float sh=pow(max(0.,dot(normalize(vec3(n,th+.2)),normalize(vec3(-.45,-.55,.7)))),24.);col+=sh*.45*uK;
-   gl_FragColor=vec4(col,a*(.55+rim*.35));}`}));ws.renderOrder=6;cab.add(ws);
+  fragmentShader:`uniform sampler2D map,uFB;uniform vec3 uSky,uGnd;uniform float uK,uHas;uniform vec2 uRes;varying vec2 vU;void main(){vec4 c=texture2D(map,vU);float a=clamp(c.a*2.2-.35,0.,1.);if(a<.01)discard;
+   vec2 n=(vec2(c.g,c.r)-.5)*2.;float th=c.b,ln=length(n);
+   // clear water bead: refract the real frame behind (previous frame copy), image inverted & minified inside the drop
+   vec2 su=gl_FragCoord.xy/uRes;vec2 ru=clamp(su-n*vec2(.035,.035*uRes.x/uRes.y)*(.35+th),vec2(.001),vec2(.999));
+   vec3 bg=texture2D(uFB,ru).rgb;
+   float rim=smoothstep(.78,1.,ln);
+   float sh=pow(max(0.,dot(normalize(vec3(n,th+.25)),normalize(vec3(-.45,-.55,.7)))),30.);
+   if(uHas>.5){vec3 col=bg*(1.04-rim*.55)+sh*1.1*uK;gl_FragColor=vec4(col,a);}
+   else{float al=a*(rim*.35+sh*.9);gl_FragColor=vec4(vec3(sh*1.2*uK),al);}}`}));ws.renderOrder=6;cab.add(ws);
  WX.ws=ws;WX.dc=dc;WX.dg=dg;WX.dt=dt;WX.CW=CW;WX.CH=CH;WX.Wm=Wm;WX.Hm=Hm;
  // drop sprite
  // drop sprite = water map (technique from Codrops RainEffect, Lucas Bebber): R=normal.y, G=normal.x, B=thickness, A=mask
@@ -1201,7 +1203,12 @@ function postBuild(){const g=GSET,want=!!(g.bloom||g.ssao||g.mblur||g.dof||g.ton
  POST.ai=null;if(g.mblur&&THREE.AfterimagePass){const p=new THREE.AfterimagePass(0);c.addPass(p);POST.ai=p;}
  POST.fin=new THREE.ShaderPass(FinalShader);c.addPass(POST.fin);POST.c=c;}
 window.__postResize=(w,h)=>{if(POST.c){POST.c.setPixelRatio(R.getPixelRatio());POST.c.setSize(w,h);}};
-function RENDER(c){if(!POST.on||!POST.c){R.render(S,c);return;}POST.rp.camera=c;if(POST.ssao)POST.ssao.camera=c;if(POST.dof){POST.dof.camera=c;POST.dof.uniforms.focus.value=chase?7:18;}
+const DFB={t:null,w:0,h:0,v:new THREE.Vector2(),f:0};
+function dropsFB(){const ws=typeof WX!='undefined'&&WX.ws;if(!ws||!ws.visible||chase)return;const U=ws.material.uniforms;R.getDrawingBufferSize(DFB.v);const w=DFB.v.x|0,h=DFB.v.y|0;
+ if(!DFB.t||DFB.w!==w||DFB.h!==h){if(DFB.t)DFB.t.dispose();DFB.t=new THREE.FramebufferTexture(w,h,THREE.RGBAFormat);DFB.t.minFilter=DFB.t.magFilter=THREE.LinearFilter;DFB.w=w;DFB.h=h;}
+ if((DFB.f++%(GSET.preset=='low'?3:1))==0){R.setRenderTarget(null);try{R.copyFramebufferToTexture(new THREE.Vector2(0,0),DFB.t);}catch(e){}}
+ U.uFB.value=DFB.t;U.uHas.value=1;U.uRes.value.set(w,h);}
+function RENDER(c){if(c===cam)dropsFB();if(!POST.on||!POST.c){R.render(S,c);return;}POST.rp.camera=c;if(POST.ssao)POST.ssao.camera=c;if(POST.dof){POST.dof.camera=c;POST.dof.uniforms.focus.value=chase?7:18;}
  if(POST.ai){const k=Math.abs(st.v)*3.6;POST.ai.uniforms.damp.value=k>70?Math.min(.62,(k-70)/120):0;}
  if(POST.bl)POST.bl.strength=tod==2?.85:.45;const U=POST.fin.uniforms;U.uTone.value=GSET.tone;U.uExp.value=GSET.exp;U.uVig.value=GSET.vig?.32:0;U.uGrain.value=GSET.grain?.035:0;U.uT.value=(performance.now()%1e5)/1000;POST.c.render();}
 // lens flare on the sun (day, clear)
