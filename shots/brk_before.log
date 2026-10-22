@@ -1,0 +1,4 @@
+tst=brake | ['TEST brake aid true dist 47.6 m time 3.35 heading change 0.0 deg maxbeta 0.0 lockFrames 0 absFrames 199']
+tst=brake&rain=2 | ['TEST brake aid true dist 62.8 m time 4.43 heading change 0.0 deg maxbeta 0.0 lockFrames 0 absFrames 265']
+tst=bst | ['ERR vf is not defined']
+tst=bst&rain=2 | ['ERR vf is not defined']

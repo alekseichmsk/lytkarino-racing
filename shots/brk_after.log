@@ -1,0 +1,5 @@
+tst=brake | ['TEST brake aid true dist 35.2 m time 2.48 heading change 0.0 deg maxbeta 0.0 lockFrames 0 absFrames 147']
+tst=brake&rain=2 | ['TEST brake aid true dist 47.6 m time 3.38 heading change 0.0 deg maxbeta 0.0 lockFrames 0 absFrames 201']
+tst=bst | ['TEST bst 60 dist 16.3 time 1.85 decel g 0.92 peak lat g 0.61 mean lat g >15kmh 0.31 heading 23 abs 110']
+tst=bst&rain=2 | ['TEST bst 60 dist 21.4 time 2.43 decel g 0.70 peak lat g 0.47 mean lat g >15kmh 0.23 heading 29 abs 145']
+tst=brakest | ['TEST brakest aid true dist 42.6 m time 3.00 heading change 35.4 deg maxbeta 10.1 lockFrames 0 absFrames 178']

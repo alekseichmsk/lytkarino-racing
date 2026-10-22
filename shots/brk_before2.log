@@ -1,0 +1,2 @@
+tst=bst | ['TEST bst 60 dist 20.4 time 2.32 decel g 0.73 peak lat g 0.55 mean lat g >15kmh 0.32 heading 38 abs 138']
+tst=bst&rain=2 | ['TEST bst 60 dist 26.9 time 3.08 decel g 0.55 peak lat g 0.43 mean lat g >15kmh 0.23 heading 41 abs 184']

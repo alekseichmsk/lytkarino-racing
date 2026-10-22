@@ -1,0 +1,1 @@
+asphalt_02 by Poly Haven (https://polyhaven.com/a/asphalt_02), CC0 1.0. rah_*.webp = R cavity AO (from height), G roughness (three.js roughnessMap channel), B height.
