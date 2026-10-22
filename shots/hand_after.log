@@ -1,0 +1,5 @@
+TEST step sv 40 wet 2 aid false maxLatG 0.730 R 18.7 steerAt 0.92 beta -1.8 kmhAt 39 dscF 0 TC 39.5 maxBetaAll 6.7 mode 1 endYaw 0.58 endKmh 39']
+TEST step sv 40 wet 0 aid false maxLatG 0.923 R 14.5 steerAt 0.93 beta -0.8 kmhAt 39 dscF 0 TC 31.0 maxBetaAll 5.4 mode 1 endYaw 0.75 endKmh 39']
+TEST step sv 25 wet 0 aid false maxLatG 0.586 R 8.4 steerAt 1.00 beta 7.3 kmhAt 25 dscF 0 TC 19.0 maxBetaAll 8.0 mode 1 endYaw 0.82 endKmh 25']
+TEST step sv 25 wet 2 aid false maxLatG 0.652 R 8.2 steerAt 1.00 beta 2.9 kmhAt 25 dscF 0 TC 18.4 maxBetaAll 5.1 mode 1 endYaw 0.84 endKmh 25']
+TEST pon sv 25 wet 0 steer 1 r0 0.82 maxYaw 0.92 maxBeta 7.4 spin no dscF 0 kmhEnd 66 lat 0.51']
