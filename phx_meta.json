@@ -114,5 +114,50 @@
  },
  "pano_dk_mir_gorbacheva_2a.jpg": {
   "skip": 1
+ },
+ "pano_kv123_1kvartal_2.jpg": {
+  "key": "kv1_2",
+  "floors": 6,
+  "fh": 2.8,
+  "addr": "1-й квартал, 2",
+  "osm": [
+   140294626
+  ]
+ },
+ "pano_kv123_1kvartal_6.jpg": {
+  "key": "kv1_6",
+  "floors": 6,
+  "fh": 2.8,
+  "addr": "1-й квартал, 6",
+  "osm": [
+   140219758
+  ]
+ },
+ "pano_kv123_2kvartal_1.jpg": {
+  "key": "kv2_1",
+  "floors": 5,
+  "fh": 2.8,
+  "addr": "2-й квартал, 1",
+  "osm": [
+   55353531
+  ]
+ },
+ "pano_kv123_2kvartal_2.jpg": {
+  "key": "kv2_2",
+  "floors": 6,
+  "fh": 2.8,
+  "addr": "2-й квартал, 2",
+  "osm": [
+   55353532
+  ]
+ },
+ "pano_kv4567_pionerskaya_8.jpg": {
+  "key": "pion8",
+  "floors": 8,
+  "fh": 2.8,
+  "addr": "Пионерская 8",
+  "osm": [
+   751304371
+  ]
  }
 }
