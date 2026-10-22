@@ -1,0 +1,12 @@
+Model Information:
+* title:	Zhiguli Soviet Cars
+* source:	https://sketchfab.com/3d-models/zhiguli-soviet-cars-7c3f4bee5d37401d853d2206dc7859fc
+* author:	spacelynxcanfly (https://sketchfab.com/spacelynxcanfly)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Zhiguli Soviet Cars" (https://sketchfab.com/3d-models/zhiguli-soviet-cars-7c3f4bee5d37401d853d2206dc7859fc) by spacelynxcanfly (https://sketchfab.com/spacelynxcanfly) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+Changes: converted to a single GLB, meshopt-compressed geometry, textures resized to 1024 px and re-encoded as WebP, node transforms flattened. Used in-game for parked cars.
