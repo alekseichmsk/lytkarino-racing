@@ -718,7 +718,7 @@ if(THREE.GLTFLoader&&!/nomodel/.test(Q)){const ld=new THREE.GLTFLoader();if(wind
  for(let i=0;i<=N;i++){const u=i/N,x=P[0][0]+(P[3][0]-P[0][0])*u;pos.push(x,yb,zAt(x,1)+.004,x,yt,zAt(x,2)+.004);uv.push(u,0,u,1);if(i<N){const a=i*2;idx.push(a,a+2,a+1,a+1,a+2,a+3);}}
  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);
  disp.geometry=g;disp.position.set(0,0,0);disp.rotation.set(0,0,0);XM.disp=disp;
- rcG.position.set(.011,1.131,-.578);rcG.rotation.set(-.2,-.19,0,'YXZ');rcG.scale.set(.85,.65,1);
+ rcG.position.set(.011,1.1305,-.607);rcG.rotation.set(-.2,-.19,0,'YXZ');rcG.scale.set(1,1,1);
  // ambient contour lines: one merged ribbon mesh along dash + front doors (points ray-cast on the model)
  const L=[[[-.68,.935,-.632],[-.6,.935,-.622],[-.2,.935,-.585],[-.12,.935,-.54],[0,.935,-.532],[.12,.935,-.524],[.2,.935,-.53],[.28,.935,-.57],[.4,.935,-.576],[.52,.935,-.585],[.66,.935,-.6]],
   [[.776,.975,-.42],[.778,.975,-.3],[.778,.975,-.15],[.777,.975,.02]],[[-.776,.975,-.42],[-.778,.975,-.3],[-.778,.975,-.15],[-.777,.975,.02]]],ap=[],ai=[];
@@ -1013,18 +1013,39 @@ const hudM=new THREE.Mesh(new THREE.PlaneGeometry(.3,.15),new THREE.MeshBasicMat
 function drawHud(){const g=hudG;g.clearRect(0,0,256,128);g.fillStyle='rgba(120,230,255,.95)';g.textAlign='center';g.font='bold 54px sans-serif';g.fillText(Math.round(Math.abs(st.v)*3.6),90,70);g.font='16px sans-serif';g.fillText('км/ч',90,92);
  g.font='bold 30px sans-serif';g.fillText(st.sel==='D'?'D'+(st.g+1):st.sel,190,62);if(st.cruise){g.font='14px sans-serif';g.fillText('⏲ '+Math.round(st.cruise*3.6),190,92);}hudT.needsUpdate=true;}
 // rear camera (shown over centre screen in R)
-const rcRT=new THREE.WebGLRenderTarget(256,144),rcCam=new THREE.PerspectiveCamera(70,16/9,.1,200);rcCam.position.set(0,1.0,2.45);rcCam.rotation.set(-.35,Math.PI,0);car.add(rcCam);
-const rcOv=new THREE.CanvasTexture(cv(256,144,(g)=>{g.strokeStyle='rgba(255,220,0,.9)';g.lineWidth=3;g.beginPath();g.moveTo(60,144);g.lineTo(100,60);g.moveTo(196,144);g.lineTo(156,60);g.stroke();g.strokeStyle='rgba(255,60,40,.9)';g.beginPath();g.moveTo(52,128);g.lineTo(204,128);g.stroke();}));
+// BMW-style rear view camera: full CID takeover (cam view left 68% + top-down PDC tile right), tailgate camera on the model
+const RCW=470,RCV=688,RCH=254;const rcRT=new THREE.WebGLRenderTarget(mobile?288:416,mobile?156:224),rcCam=new THREE.PerspectiveCamera(78,RCW/RCH,.05,120);rcCam.position.set(0,1.07,2.4);rcCam.rotation.set(-.62,Math.PI,0,'YXZ');car.add(rcCam);window.__RCRT=rcRT;
+const rcC=cv(RCV*2,RCH*2,()=>{}),rcCg=rcC.getContext('2d');rcCg.scale(2,2);const rcOv=new THREE.CanvasTexture(rcC);rcOv.encoding=THREE.sRGBEncoding;
 const rcG=new THREE.Group();rcG.position.set(.09,1.045,-.733);rcG.rotation.x=-.16;cab.add(rcG);
-const rcScr=new THREE.Mesh(new THREE.PlaneGeometry(.38,.19),new THREE.MeshBasicMaterial({map:rcRT.texture}));rcScr.scale.x=-1;rcScr.material.side=THREE.DoubleSide;rcG.add(rcScr);
-const rcLn=new THREE.Mesh(new THREE.PlaneGeometry(.38,.19),new THREE.MeshBasicMaterial({map:rcOv,transparent:true}));rcLn.position.z=.001;rcG.add(rcLn);rcG.visible=false;
+const rcScr=new THREE.Mesh(new THREE.PlaneGeometry(.344*RCW/RCV,.127),new THREE.MeshBasicMaterial({map:rcRT.texture,toneMapped:false}));rcScr.position.x=-.172+.172*RCW/RCV;rcScr.scale.x=-1;rcScr.material.side=THREE.DoubleSide;rcG.add(rcScr);
+const rcLn=new THREE.Mesh(new THREE.PlaneGeometry(.344,.127),new THREE.MeshBasicMaterial({map:rcOv,transparent:true,toneMapped:false}));rcLn.position.z=.001;rcG.add(rcLn);rcG.visible=false;
+let rcHold=0,rcWas=false;const RCS=(/rcst=(-?[\d.]+)/.exec(Q)||[0,null])[1];const rcV=new THREE.Vector3();
+function drawRC(){const g=rcCg;g.clearRect(0,0,RCV,RCH);rcCam.updateMatrixWorld();car.updateMatrixWorld();
+ const P=(x,z)=>{rcV.set(x,0.02,z);car.localToWorld(rcV);rcV.project(rcCam);return rcV.z<1&&rcV.z>-1?[(1-(rcV.x+1)/2)*RCW,(1-(rcV.y+1)/2)*RCH]:null;};
+ const line=(pts,c,w)=>{g.strokeStyle=c;g.lineWidth=w;g.beginPath();let f=1;pts.forEach(q=>{if(!q){f=1;return;}g[f?'moveTo':'lineTo'](q[0],q[1]);f=0;});g.stroke();};
+ const zr=2.36; // rear bumper z (car frame, +z = rear)
+ // static distance zones (straight back, car width)
+ [[0,.5,'#ff3030'],[.5,1.2,'#ffc020'],[1.2,3,'#30d060']].forEach(([a,b,c])=>{line([P(-.98,zr+a),P(-.98,zr+b)],c,3);line([P(.98,zr+a),P(.98,zr+b)],c,3);line([P(-.98,zr+b),P(-.75,zr+b)],c,3);line([P(.98,zr+b),P(.75,zr+b)],c,3);});
+ // dynamic trajectory: bicycle model on rear axle (wheelbase 2.97, rear axle z=+1.49), bends with steering
+ const dl=(RCS!==null?RCS:st.steer)*.6,L2=2.97,ax=1.49;const pts=s=>{const out=[];for(let d=0;d<=3.2;d+=.2){let x,z;if(Math.abs(dl)<1e-3){x=s;z=ax+d;}else{const Rr=L2/Math.tan(dl),th=d/Rr;x=Rr-(Rr-s)*Math.cos(th);z=ax+(Rr-s)*Math.sin(th);}if(z>=zr-.05)out.push(P(x,z));}return out;};
+ line(pts(-.86),'rgba(80,200,255,.95)',4);line(pts(.86),'rgba(80,200,255,.95)',4);
+ // camera labels
+ g.fillStyle='rgba(0,0,0,.55)';g.fillRect(0,0,RCW,24);g.fillStyle='#fff';g.font='13px sans-serif';g.textAlign='left';g.fillText('◉ Камера заднего вида',10,17);g.textAlign='right';g.fillText('R',RCW-10,17);
+ // top-down tile with PDC arcs
+ g.fillStyle='#070b10';g.fillRect(RCW,0,RCV-RCW,RCH);g.fillStyle='#000';g.fillRect(RCW,0,3,RCH);const cx=RCW+(RCV-RCW)/2,cy=RCH*.4;
+ g.fillStyle='#2a3542';g.beginPath();g.roundRect?g.roundRect(cx-26,cy-58,52,116,14):g.rect(cx-26,cy-58,52,116);g.fill();g.fillStyle='#0d1218';g.fillRect(cx-20,cy-30,40,30);g.fillRect(cx-20,cy+22,40,22);g.fillStyle='#3a4a5c';g.fillRect(cx-30,cy-40,4,18);g.fillRect(cx+26,cy-40,4,18);
+ const d=st.pdc,col=d<.6?'#ff3030':d<1.4?'#ffc020':'#30d060';
+ for(let k=0;k<4;k++){const lim=[.3,.6,1.4,2.5][k];const on=d<2.5&&d<=lim+.0001||false;g.strokeStyle=d<2.5&&d<=[2.5,1.4,.6,.3][3-k]?col:'#1c2733';g.lineWidth=6;g.beginPath();g.arc(cx,cy+58,22+k*13,Math.PI*.15,Math.PI*.85);g.stroke();}
+ g.fillStyle=d<2.5?col:'#8ea0b4';g.font='bold 16px sans-serif';g.textAlign='center';g.fillText(d<2.5?(d<.3?'STOP':(d*100|0)+' см'):'—',cx,RCH-12);
+ rcOv.needsUpdate=true;}
+
 function pdcDist(){const s=Math.sin(st.h),c=Math.cos(st.h);let best=9;const dirs=st.sel==='R'?-1:1;for(let d=0;d<=3;d+=.25)for(const ax of[-.8,0,.8]){const bz=dirs*(2.4+d),px=st.x+ax*c+bz*s,pz=st.z-ax*s+bz*c;if(hit(px,pz)||AI.some(o=>Math.hypot(o.g.position.x-px,o.g.position.z-pz)<1.6)){best=Math.min(best,d);}}return best;}
 let pdcT=0,indT=0,indOn=false;
 function featTick(dt){indT+=dt;if(indT>.333){indT=0;indOn=!indOn;if(st.ind||st.haz)blip(indOn?1800:1200,.03,.04);}
  if(st.ind&&Math.abs(st.steer)>.5)st.indArm=1;if(st.ind&&st.indArm&&Math.abs(st.steer)<.1)st.ind=0;
  st.pdc=9;if(st.on&&(st.sel==='R'||(st.sel==='D'&&Math.abs(st.v)<3))){st.pdc=pdcDist();if(st.pdc<2.5){pdcT-=dt;if(pdcT<=0){blip(2400,.06,.05);pdcT=st.pdc<.4?.07:.1+st.pdc*.25;}}}
- rcG.visible=st.sel==='R'&&st.on;hudM.visible=!!st.hud&&st.on;if(st.hud&&fr%3==0)drawHud();}
-function renderRearCam(){if(rcG.visible){R.setRenderTarget(rcRT);R.render(S,rcCam);R.setRenderTarget(null);}}
+ {const kmh=st.v*3.6;if(st.sel==='R'&&st.on){rcHold=8;rcWas=true;}else if(rcWas){rcHold-=dt;if(rcHold<=0||(st.sel==='D'&&Math.abs(kmh)>15)||!st.on)rcWas=false;}rcG.visible=rcWas;if(rcWas&&fr%4==0)drawRC();}hudM.visible=!!st.hud&&st.on;if(st.hud&&fr%3==0)drawHud();}
+let rcF=0;function renderRearCam(){if(!rcG.visible||!cab.visible)return;if(mobile&&(rcF++&1))return;const bv=body.visible;body.visible=true;cab.visible=false;R.setRenderTarget(rcRT);R.render(S,rcCam);R.setRenderTarget(null);body.visible=bv;cab.visible=true;}
 // small popup menu
 {const ui=document.getElementById('ui');const mk=(id,t,ti)=>{const b=document.createElement('b');b.id=id;b.textContent=t;b.title=ti;return b;};
  const pw=mk('bPow','⏻','Start/Stop (Enter)');ui.insertBefore(pw,ui.firstChild);const mn=mk('bMenu','≡','Функции BMW');ui.insertBefore(mn,pw.nextSibling);
