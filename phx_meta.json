@@ -159,5 +159,89 @@
   "osm": [
    751304371
   ]
+ },
+ "pano_kv123_1kvartal_1.jpg": {
+  "key": "kv1_1",
+  "floors": 14,
+  "fh": 2.8,
+  "addr": "1-й квартал, 1",
+  "osm": [
+   140219783
+  ]
+ },
+ "pano_kv123_1kvartal_3.jpg": {
+  "key": "kv1_3",
+  "floors": 4,
+  "fh": 2.8,
+  "addr": "1-й квартал, 3",
+  "osm": [
+   140219789
+  ]
+ },
+ "pano_kv123_1kvartal_4.jpg": {
+  "key": "kv1_4",
+  "floors": 5,
+  "fh": 2.8,
+  "addr": "1-й квартал, 4",
+  "osm": [
+   140219786
+  ]
+ },
+ "pano_kv123_1kvartal_7.jpg": {
+  "key": "kv1_7",
+  "floors": 14,
+  "fh": 2.8,
+  "addr": "1-й квартал, 7",
+  "osm": [
+   140219768
+  ]
+ },
+ "pano_kv123_2kvartal_3.jpg": {
+  "key": "kv2_3",
+  "floors": 14,
+  "fh": 2.8,
+  "addr": "2-й квартал, 3",
+  "osm": [
+   55353540
+  ]
+ },
+ "pano_kv4567_komsomolskaya_unk1.jpg": {
+  "key": "koms24",
+  "floors": 6,
+  "fh": 2.8,
+  "addr": "Комсомольская 24 (не подтверждён)",
+  "osm": [
+   938821097
+  ],
+  "uniq": 1
+ },
+ "pano_kv4567_oktyabrskaya_4.jpg": {
+  "key": "okt4",
+  "floors": 9,
+  "fh": 2.8,
+  "addr": "Октябрьская 4 (Пятёрочка, Аптека)",
+  "osm": [
+   138298798
+  ],
+  "uniq": 1,
+  "signs": 1
+ },
+ "vd_18638_18638_1_crop.jpg": {
+  "key": "kolh2k1",
+  "floors": 16,
+  "fh": 2.8,
+  "addr": "Колхозная 2 к1",
+  "osm": [
+   232615277
+  ]
+ },
+ "vd_18809_008_1_crop.jpg": {
+  "key": "sov8",
+  "floors": 15,
+  "fh": 2.8,
+  "addr": "Советская 8",
+  "osm": [
+   112260109
+  ]
  }
 }
