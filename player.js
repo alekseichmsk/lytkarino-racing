@@ -96,20 +96,32 @@ function ik(side,target,pole){const up=B['mixamorig'+side+'Arm'],lo=B['mixamorig
  const e2=wp(lo,new T.Vector3()),h2=wp(ha,new T.Vector3());rotBoneWorld(lo,h2.clone().sub(e2),target.clone().sub(e2));}
 // wheel grips (car-local rest frame of the steering wheel -> follow XM.sw world matrix as it turns)
 let GRIP=null;const GEAR=new T.Vector3(.03,.88,.24),gearH={t:-1};PLY.GEAR=GEAR;
-function initGrip(){const sw=XM.sw;if(!sw)return;sw.updateWorldMatrix(true,false);const ctr=new T.Vector3(.394,1.101,.43),n=XM.swAx.clone().normalize();const u=new T.Vector3(0,1,0).sub(n.clone().multiplyScalar(n.y)).normalize(),r=new T.Vector3().crossVectors(u,n).normalize();
- const R=.175,pt=(ang)=>ctr.clone().add(u.clone().multiplyScalar(Math.cos(ang)*R)).add(r.clone().multiplyScalar(Math.sin(ang)*R));const L=pt(1.25),Rr=pt(-1.25);const left=L.x>Rr.x?L:Rr,right=L.x>Rr.x?Rr:L;
- car.updateMatrixWorld(true);const toSW=new T.Matrix4().copy(sw.matrixWorld).invert().multiply(car.matrixWorld);const wr=p=>p.clone().sub(ctr).normalize().multiplyScalar(-.035).add(p).add(n.clone().multiplyScalar(.05)).sub(u.clone().multiplyScalar(.03));GRIP={L:wr(left).applyMatrix4(toSW),R:wr(right).applyMatrix4(toSW)};}
+// Steering hands: each hand holds an offset o on the rim (wheel-relative angle). Car-frame rim angle phi=o+W (W=steer*2.4, measured from top).
+// a=sg*phi is the hand-side angle (rest 1.25 = 10/2 o'clock). If a hand is carried out of its comfort range it releases and
+// travels (lifted, along the rim) to a new grip while the other hand holds (push-pull shuffle); hands return to 10&2 at center.
+function initGrip(){const sw=XM.sw;if(!sw)return;const ctr=new T.Vector3(.394,1.101,.43),n=XM.swAx.clone().normalize();const u=new T.Vector3(0,1,0).sub(n.clone().multiplyScalar(n.y)).normalize(),r=new T.Vector3().crossVectors(u,n).normalize();
+ const R=.175,pt=ang=>ctr.clone().add(u.clone().multiplyScalar(Math.cos(ang)*R)).add(r.clone().multiplyScalar(Math.sin(ang)*R));const sL=pt(1.25).x>pt(-1.25).x?1:-1;
+ GRIP={ctr,n,u,r,R,pt,H:{Left:{sg:sL,o:1.25*sL,t:-1},Right:{sg:-sL,o:-1.25*sL,t:-1}}};PLY.GRIP=GRIP;}
+const LO=.05,HI=2.45,REST=1.25,TT=.26;
+function gripPos(sd,W,dt){const G2=GRIP,h=G2.H[sd],oth=G2.H[sd==='Left'?'Right':'Left'];let a=h.sg*(h.o+W),lift=0;
+ if(h.t>=0){h.t+=dt/TT;const k=Math.min(1,h.t),e=k*k*(3-2*k);h.o=h.o0+(h.o1-h.o0)*e;lift=Math.sin(Math.PI*k);a=h.sg*(h.o+W);if(k>=1)h.t=-1;}
+ else if(oth.t<0&&!(sd==='Right'&&gearH.t>=0)){let tgt=null;const vW=(W-(h.pW??W))*h.sg;
+  if(a<LO)tgt=Math.min(HI-.25,a+1.6);else if(a>HI)tgt=Math.max(LO+.25,a-1.6);
+  else if(Math.abs(W)<.06&&Math.abs(a-REST)>.2&&Math.abs(vW)<.01)tgt=REST;
+  if(tgt!==null){h.o0=h.o;h.o1=tgt*h.sg-W;h.t=0;}}
+ h.pW=W;const ang=a*h.sg,p=G2.pt(ang),rad=p.clone().sub(G2.ctr).normalize();
+ p.add(rad.multiplyScalar(-.035+lift*.03)).add(G2.n.clone().multiplyScalar(.05+lift*.06)).sub(G2.u.clone().multiplyScalar(.03));return p.applyMatrix4(car.matrixWorld);}
 PLY.onGear=g=>{if(!PLY.foot&&PLY.ready)gearH.t=0;};
 // seated: align head to the driver eye point, then arms to the wheel
 const EYE=new T.Vector3(.394,1.32,-.12);
 const armK=k=>{if(PLY._ak===k)return;PLY._ak=k;['Left','Right'].forEach(sd=>['ForeArm','Hand'].forEach(n=>{const bn=B['mixamorig'+sd+n];if(bn)bn.position.copy(tpl.restP[bn.name]).multiplyScalar(k);}));const m=sk.material;m.emissiveMap=k>1?m.map:null;m.emissive.setScalar(k>1?.45:0);m.needsUpdate=true;};
 function seatPose(dt,showHead){armK(1.22);const root=PLY.root;if(root.parent!==car)car.add(root);root.position.set(0,0,0);root.rotation.set(0,0,0);o.position.set(0,0,0);
  play('Drive',.3);mx.update(dt);root.updateMatrixWorld(true);const hd=B.mixamorigHead;if(hd){const hp=car.worldToLocal(wp(hd,new T.Vector3()));o.position.set(EYE.x-hp.x,EYE.y-.07-hp.y,EYE.z+.05-hp.z);root.updateMatrixWorld(true);}
- if(GRIP===null)initGrip();if(GRIP&&XM.sw){XM.sw.updateWorldMatrix(true,false);const gl=GRIP.L.clone().applyMatrix4(XM.sw.matrixWorld),gr=GRIP.R.clone().applyMatrix4(XM.sw.matrixWorld);
-  const down=new T.Vector3(0,-1,0),outL=new T.Vector3(1,0,0).transformDirection(car.matrixWorld);
-  ik('Left',gl,down.clone().add(outL.clone().multiplyScalar(.6)));
+ if(GRIP===null)initGrip();if(GRIP&&XM.sw){car.updateMatrixWorld(true);const W=(PLY.dbgSteer??st.steer)*2.4;const gl=gripPos('Left',W,dt),gr=gripPos('Right',W,dt);
+  const down=new T.Vector3(0,-1,0),outL=new T.Vector3(1,0,0).transformDirection(car.matrixWorld),fwd=new T.Vector3(0,0,-.3).transformDirection(car.matrixWorld).multiplyScalar(.3);
+  ik('Left',gl,down.clone().add(outL.clone().multiplyScalar(.8)).add(fwd));
   let tr=gr;if(PLY.dbgGear)gearH.t=.3;if(gearH.t>=0){gearH.t+=dt;const k=gearH.t<.18?gearH.t/.18:gearH.t<.58?1:Math.max(0,1-(gearH.t-.58)/.18);if(gearH.t>.76)gearH.t=-1;const gp=GEAR.clone().applyMatrix4(car.matrixWorld);tr=gr.clone().lerp(gp,k*k*(3-2*k));}
-  ik('Right',tr,down.clone().sub(outL.clone().multiplyScalar(.6)));}
+  ik('Right',tr,down.clone().sub(outL.clone().multiplyScalar(.8)).add(fwd));}
  setHead(showHead);}
 const setHead=v=>{const hd=B.mixamorigNeck||B.mixamorigHead;if(hd){const s=v?1:.001;hd.scale.setScalar(s);hd.updateMatrixWorld(true);}};
 // ---------- input (on foot)
