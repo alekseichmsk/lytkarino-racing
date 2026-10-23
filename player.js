@@ -38,7 +38,9 @@ function collide(){const R=.28;const gx=Math.floor(P.x/CS),gz=Math.floor(P.z/CS)
  for(let it=0;it<2;it++){for(let a=-1;a<=1;a++)for(let c=-1;c<=1;c++){const k=(gx+a)+','+(gz+c);(BG[k]||[]).forEach(s=>{const q=segP(P.x,P.z,s[0],s[1],s[2],s[3]);pushC(q[0],q[1],0,R);});
    (CX.S[k]||[]).forEach(o2=>{const q=segP(P.x,P.z,o2.a[0],o2.a[1],o2.b[0],o2.b[1]);pushC(q[0],q[1],o2.th,R);});(CX.P&&CX.P[k]||[]).forEach(o2=>{if(!o2.down)pushC(o2.x,o2.z,o2.r,R);});(CX.G[k]||[]).forEach(o2=>{if(!o2.bush)pushC(o2.x,o2.z,o2.r,R);});}
   pushOBB(st.x,st.z,st.h,.97,2.45,R);
-  if(window.__PCAR)__PCAR.L.forEach(q=>{if(Math.abs(q[0]-P.x)<4&&Math.abs(q[1]-P.z)<4)pushOBB(q[0],q[1],q[2],.82,2.05,R);});}}
+  if(window.__PCAR)__PCAR.L.forEach(q=>{if(q[4]&&Math.abs(q[0]-P.x)<4&&Math.abs(q[1]-P.z)<4)pushPoly(q[4],R);});}}
+function pushPoly(p,R){let bd=1e9,bx=0,bz=0;for(let i=0;i<p.length;i++){const a=p[i],c=p[(i+1)%p.length],q=segP(P.x,P.z,a[0],a[1],c[0],c[1]),d=Math.hypot(P.x-q[0],P.z-q[1]);if(d<bd){bd=d;bx=q[0];bz=q[1];}}
+ const ins=pip(P.x,P.z,p);if(!ins&&bd>=R)return;let nx=P.x-bx,nz=P.z-bz,l=Math.hypot(nx,nz)||1;nx/=l;nz/=l;if(ins){nx=-nx;nz=-nz;}P.x=bx+nx*R;P.z=bz+nz*R;}
 const camBlock=(x0,z0,x1,z1)=>{// shortest fraction along head->camera crossing a building edge or car box
  let best=1;const gx0=Math.floor(Math.min(x0,x1)/CS)-1,gx1=Math.floor(Math.max(x0,x1)/CS)+1,gz0=Math.floor(Math.min(z0,z1)/CS)-1,gz1=Math.floor(Math.max(z0,z1)/CS)+1;
  const isx=(ax,az,bx,bz)=>{const rx=x1-x0,rz=z1-z0,sx=bx-ax,sz=bz-az,dn=rx*sz-rz*sx;if(Math.abs(dn)<1e-9)return;const t=((ax-x0)*sz-(az-z0)*sx)/dn,u=((ax-x0)*rz-(az-z0)*rx)/dn;if(t>0&&t<best&&u>=0&&u<=1)best=t;};
@@ -47,18 +49,31 @@ const camBlock=(x0,z0,x1,z1)=>{// shortest fraction along head->camera crossing 
  return best;};
 // ---------- driver door: cut the exterior body around the front-left door into a hinged mesh
 const DOOR={piv:null,a:0,tg:0};PLY.DOOR=DOOR;
-function cutDoor(){if(DOOR.piv||!XM.root)return;const inv=new T.Matrix4().copy(body.matrixWorld).invert();body.updateMatrixWorld(true);
- const HZ=.96,RZ=-.40,Y0=.36,Y1=1.47,X0=.72;const pos=[],nor=[],uvs=[];const piv=new T.Group();piv.position.set(1.02,0,HZ);body.add(piv);
- XM.root.traverse(m=>{if(!m.isMesh||!/^Body/.test(m.name)||!m.geometry.index)return;const g=m.geometry,Pp=g.attributes.position,Nn=g.attributes.normal,Uu=g.attributes.uv,ix=g.index;
-  const M=new T.Matrix4().multiplyMatrices(inv,m.matrixWorld),NM=new T.Matrix3().getNormalMatrix(M),v=new T.Vector3(),n=new T.Vector3();const keep=[],dp=[],dn=[],du=[];
-  const W=i=>v.fromBufferAttribute(Pp,i).applyMatrix4(M).clone();
-  for(let t=0;t<ix.count;t+=3){const a=ix.getX(t),b=ix.getX(t+1),c=ix.getX(t+2);const pa=W(a),pb=W(b),pc=W(c);const cx=(pa.x+pb.x+pc.x)/3,cy=(pa.y+pb.y+pc.y)/3,cz=(pa.z+pb.z+pc.z)/3;
-   const inDoor=cx>X0&&cz<HZ&&cz>RZ&&cy>Y0&&cy<Y1&&!(cy>1.0&&cz>HZ-.25-(cy-1.0)*1.1);// A-pillar slope above the beltline stays on the body
-   if(!inDoor){keep.push(a,b,c);continue;}
-   [[a,pa],[b,pb],[c,pc]].forEach(([i,p])=>{dp.push(p.x-1.02,p.y,p.z-HZ);if(Nn){n.fromBufferAttribute(Nn,i).applyMatrix3(NM).normalize();dn.push(n.x,n.y,n.z);}if(Uu)du.push(Uu.getX(i),Uu.getY(i));});}
-  if(!dp.length)return;const ng=g.clone();ng.setIndex(keep);m.geometry=ng;// cabin clone keeps the original (shared) geometry
-  const dg=new T.BufferGeometry();dg.setAttribute('position',new T.Float32BufferAttribute(dp,3));if(dn.length)dg.setAttribute('normal',new T.Float32BufferAttribute(dn,3));else dg.computeVertexNormals();if(du.length)dg.setAttribute('uv',new T.Float32BufferAttribute(du,2));
-  const dm=new T.Mesh(dg,m.material);dm.castShadow=m.castShadow;dm.name='Door_'+m.name;piv.add(dm);});
+function splitDoors(geo,DS){const P=geo.attributes.position,N=geo.attributes.normal,U=geo.attributes.uv;
+ const V8=i=>[P.getX(i),P.getY(i),P.getZ(i),N?N.getX(i):0,N?N.getY(i):0,N?N.getZ(i):0,U?U.getX(i):0,U?U.getY(i):0];
+ const lerp=(p,q,t)=>p.map((x,i)=>x+(q[i]-x)*t);const pj=v=>[v[2],v[1]];
+ const cut=(poly,A,B)=>{const f=v=>{const p=pj(v);return (B[0]-A[0])*(p[1]-A[1])-(B[1]-A[1])*(p[0]-A[0]);};const I=[],O=[];
+  for(let i=0;i<poly.length;i++){const p=poly[i],q=poly[(i+1)%poly.length],fp=f(p),fq=f(q);if(fp>=0)I.push(p);else O.push(p);if((fp>=0)!==(fq>=0)){const x=lerp(p,q,fp/(fp-fq));I.push(x);O.push(x);}}return [I,O];};
+ const fan=(poly,out)=>{for(let i=1;i<poly.length-1;i++)out.push(poly[0],poly[i],poly[i+1]);};
+ const rest=[],dv=DS.map(()=>[]);
+ for(let i=0;i<P.count;i+=3){const t=[V8(i),V8(i+1),V8(i+2)];const c=[0,1,2].map(k=>(t[0][k]+t[1][k]+t[2][k])/3);
+  const e1=[0,1,2].map(k=>t[1][k]-t[0][k]),e2=[0,1,2].map(k=>t[2][k]-t[0][k]);let n=[e1[1]*e2[2]-e1[2]*e2[1],e1[2]*e2[0]-e1[0]*e2[2],e1[0]*e2[1]-e1[1]*e2[0]];const nl=Math.hypot(...n)||1;n=n.map(x=>x/nl);
+  let hit=false;for(let di=0;di<DS.length;di++){const d=DS[di];if(!(n[0]*d.sd>d.nx&&c[0]*d.sd>d.xmin))continue;let inside=t,outs=[];const pl=d.poly;
+   for(let k=0;k<pl.length&&inside.length>=3;k++){const [I,O]=cut(inside,pl[k],pl[(k+1)%pl.length]);if(O.length>=3)outs.push(O);inside=I;}
+   if(inside.length>=3){fan(inside,dv[di]);outs.forEach(o=>fan(o,rest));hit=true;break;}}
+  if(!hit)rest.push(...t);}
+ const mkG=arr=>{if(!arr.length)return null;const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(arr.flatMap(v=>v.slice(0,3)),3));
+  g.setAttribute('normal',new T.Float32BufferAttribute(arr.flatMap(v=>v.slice(3,6)),3));g.setAttribute('uv',new T.Float32BufferAttribute(arr.flatMap(v=>v.slice(6,8)),2));return g;};
+ return {body:mkG(rest),doors:dv.map(mkG)};}
+// (splitDoors copied from vehicles_npc.js) — X5 front-left door outline in (z,y), counter-clockwise
+const capM=new T.MeshBasicMaterial({color:0x0e1012,side:T.DoubleSide});
+function cutDoor(){if(DOOR.piv||!XM.root)return;body.updateMatrixWorld(true);const inv=new T.Matrix4().copy(body.matrixWorld).invert();
+ const HZ=.98,RZ=-.40,Y0=.36,Y1=1.47,HX=1.0;const D={sd:1,nx:-2,xmin:.62,poly:[[RZ,Y0],[HZ,Y0],[HZ,1.02],[HZ-.58,Y1],[RZ,Y1]]};
+ const piv=new T.Group();piv.position.set(HX,0,HZ);body.add(piv);const ms=[];XM.root.traverse(m=>{if(m.isMesh&&/^Body/.test(m.name))ms.push(m);});
+ ms.forEach(m=>{const src=m.geometry,g=new T.BufferGeometry();['position','normal','uv'].forEach(k=>{const a=src.attributes[k];if(!a)return;const n=a.itemSize,arr=new Float32Array(a.count*n);for(let q=0;q<a.count;q++){arr[q*n]=a.getX(q);if(n>1)arr[q*n+1]=a.getY(q);if(n>2)arr[q*n+2]=a.getZ(q);}g.setAttribute(k,new T.BufferAttribute(arr,n));});
+  if(src.index)g.setIndex(src.index.clone());const M=new T.Matrix4().multiplyMatrices(inv,m.matrixWorld);g.applyMatrix4(M);const gn=g.index?g.toNonIndexed():g;
+  const r=splitDoors(gn,[D]);const dg=r.doors[0];if(!dg)return;m.visible=false;if(r.body){const bm=new T.Mesh(r.body,m.material);bm.castShadow=m.castShadow;bm.receiveShadow=m.receiveShadow;bm.name='Cut_'+m.name;body.add(bm);}
+  dg.translate(-HX,0,-HZ);const dm=new T.Mesh(dg,m.material);dm.castShadow=true;dm.name='Door_'+m.name;piv.add(dm);const cap=new T.Mesh(dg,capM);cap.position.set(HX-.06,0,HZ);body.add(cap);});
  DOOR.piv=piv;console.log('PLY door cut',piv.children.length,'parts');}
 // ---------- load
 (async()=>{try{const ga=await ldp(ld,'models/peds/anims_player.glb');ga.animations.forEach(a=>{a.tracks=a.tracks.filter(t=>t.name.endsWith('.quaternion')||/Hips\.position/.test(t.name));CLIPS[a.name]=a;});
@@ -96,7 +111,7 @@ function seatPose(dt,showHead){armK(1.22);const root=PLY.root;if(root.parent!==c
   let tr=gr;if(PLY.dbgGear)gearH.t=.3;if(gearH.t>=0){gearH.t+=dt;const k=gearH.t<.18?gearH.t/.18:gearH.t<.58?1:Math.max(0,1-(gearH.t-.58)/.18);if(gearH.t>.76)gearH.t=-1;const gp=GEAR.clone().applyMatrix4(car.matrixWorld);tr=gr.clone().lerp(gp,k*k*(3-2*k));}
   ik('Right',tr,down.clone().sub(outL.clone().multiplyScalar(.6)));}
  setHead(showHead);}
-const setHead=v=>{const hd=B.mixamorigHead;if(hd){const s=v?1:.001;hd.scale.setScalar(s);hd.updateMatrixWorld(true);}};
+const setHead=v=>{const hd=B.mixamorigNeck||B.mixamorigHead;if(hd){const s=v?1:.001;hd.scale.setScalar(s);hd.updateMatrixWorld(true);}};
 // ---------- input (on foot)
 const J={x:0,y:0,on:false,id:-1,ox:0,oy:0,look:-1,lx:0,ly:0};let drag=false,dx0=0,dy0=0;
 addEventListener('keydown',e=>{if(e.repeat)return;const c=e.code;if(c==='KeyF'){e.preventDefault();toggle();}
@@ -122,21 +137,21 @@ const lerp=(a,b,t)=>a+(b-a)*t;const DOORPT=new T.Vector3(1.45,0,.05);PLY.DOORPT=
 const doorWorld=()=>{const s=Math.sin(st.h),c=Math.cos(st.h);return [st.x+DOORPT.x*c+DOORPT.z*s,st.z-DOORPT.x*s+DOORPT.z*c];};
 let prevChase=false;
 function toggle(){if(!PLY.ready||PLY.seq)return;if(!PLY.foot){if(Math.abs(st.v)*3.6>4)return;exitCar();}else{const [dx,dz]=doorWorld();if(Math.hypot(P.x-dx,P.z-dz)<3.2)enterCar();}}
-PLY.toggle=toggle;
+PLY.toggle=toggle;PLY._cb=(a,b,c,d)=>camBlock(a,b,c,d);
 function exitCar(){cutDoor();if(st.sel!=='P')G.setGear('P');prevChase=G.chase;G.setChase(true);PLY.foot=true;PLY.seq={k:'exit',t:0};const tc=document.getElementById('tc');if(tc)tc.style.visibility='hidden';ui.style.display=mobile?'block':'none';
- P.yaw=st.h+Math.PI*.75;P.pitch=-.15;P.h=st.h+Math.PI/2;PLY.cam=fcam;}
+ P.yaw=st.h+Math.PI*.75;P.pitch=-.15;P.h=st.h+Math.PI/2;P.spd=0;P.air=false;P.y=0;standAt(.62,-.2,P.h);PLY.cam=fcam;}
 function enterCar(){cutDoor();PLY.seq={k:'enter',t:0,x0:P.x,z0:P.z,h0:P.h};}
 // door point in world for a car-local point
 const c2w=(lx,lz)=>{const s=Math.sin(st.h),c=Math.cos(st.h);return [st.x+lx*c+lz*s,st.z-lx*s+lz*c];};
 function standAt(lx,lz,hh){const [x,z]=c2w(lx,lz);P.x=x;P.z=z;P.h=hh;}
 // ---------- per frame
 let wasFoot=false;
-PLY.tick=dt=>{if(!PLY.ready)return;dt=Math.min(dt,.05);if(DOOR.piv){DOOR.a+=Math.sign(DOOR.tg-DOOR.a)*Math.min(Math.abs(DOOR.tg-DOOR.a),dt*3.2);DOOR.piv.rotation.y=-DOOR.a;}
+PLY.tick=dt=>{if(!PLY.ready)return;dt=PLY.dtMul?Math.min(dt*PLY.dtMul,.25):Math.min(dt,.05);if(DOOR.piv){DOOR.a+=Math.sign(DOOR.tg-DOOR.a)*Math.min(Math.abs(DOOR.tg-DOOR.a),dt*3.2);DOOR.piv.rotation.y=-DOOR.a;}
  doorB.style.display=(PLY.foot||Math.abs(st.v)*3.6<4)&&!document.getElementById('fmap')?.style.display.includes('block')?(mobile?'block':'none'):'none';
  const sq=PLY.seq;
  if(!PLY.foot){seatPose(dt,G.chase);return;}
  if(sq&&sq.k==='exit'){sq.t+=dt;DOOR.tg=1.05;const t=sq.t;
-  if(t<.45){seatPose(dt,true);}
+  if(t<.45){seatPose(dt,true);const [x,z]=doorWorld();const piv=new T.Vector3(x,1.3,z),cp=Math.cos(P.pitch);fcam.position.set(x+Math.sin(P.yaw)*cp*P.dist,1.3-Math.sin(P.pitch)*P.dist,z+Math.cos(P.yaw)*cp*P.dist);fcam.lookAt(piv);return;}
   else{const k=Math.min(1,(t-.45)/.7),root=PLY.root;if(root.parent!==S){S.add(root);}o.position.set(0,0,0);root.rotation.set(0,0,0);
    const lx=lerp(.62,DOORPT.x,k),lz=lerp(-.2,DOORPT.z,k);standAt(lx,lz,st.h+lerp(Math.PI/2,Math.PI*.6,k));P.y=lerp(.25,0,k);play(k<1?'Walk':'Idle',.25,.7);if(t>1.6)DOOR.tg=0;if(t>2.0){PLY.seq=null;}}}
  else if(sq&&sq.k==='enter'){sq.t+=dt;const t=sq.t;const [dx,dz]=doorWorld();
@@ -157,7 +172,7 @@ PLY.tick=dt=>{if(!PLY.ready)return;dt=Math.min(dt,.05);if(DOOR.piv){DOOR.a+=Math
  armK(1);const root=PLY.root;if(root.parent!==S)S.add(root);root.position.set(P.x,P.y,P.z);root.rotation.set(0,P.h,0);o.position.set(0,0,0);mx.update(dt);root.updateMatrixWorld(true);
  // camera
  const hd=B.mixamorigHead,hp=hd?wp(hd,new T.Vector3()):new T.Vector3(P.x,1.6,P.z);
- if(PLY.fpv){setHead(false);fcam.position.copy(hp).add(new T.Vector3(Math.sin(P.h)*.12,.05,Math.cos(P.h)*.12));const ly=P.yaw+Math.PI;P.h=PLY.seq?P.h:(P.spd<.1?P.h:P.h);fcam.rotation.set(0,0,0);fcam.rotation.order='YXZ';fcam.rotation.y=ly+Math.PI;fcam.rotation.x=P.pitch;
+ if(PLY.fpv){setHead(false);fcam.position.copy(hp).add(new T.Vector3(Math.sin(P.h)*.16,.1,Math.cos(P.h)*.16));const ly=P.yaw+Math.PI;P.h=PLY.seq?P.h:(P.spd<.1?P.h:P.h);fcam.rotation.set(0,0,0);fcam.rotation.order='YXZ';fcam.rotation.y=ly+Math.PI;fcam.rotation.x=P.pitch;
   if(!PLY.seq&&(J.id>=0||K.KeyW||K.KeyS||K.KeyA||K.KeyD||K.ArrowUp||K.ArrowDown)){}// movement already camera-relative
  }else{setHead(true);const piv=new T.Vector3(P.x,P.y+(PLY.crouch?1.05:1.55),P.z);const cp=Math.cos(P.pitch),dx=Math.sin(P.yaw)*cp,dz=Math.cos(P.yaw)*cp,dy=-Math.sin(P.pitch);
   let d=P.dist;const f=camBlock(piv.x,piv.z,piv.x+dx*(d+.3),piv.z+dz*(d+.3));d=Math.max(.5,(d+.3)*f-.3);fcam.position.set(piv.x+dx*d,Math.max(.25,piv.y+dy*d),piv.z+dz*d);fcam.lookAt(piv);}
