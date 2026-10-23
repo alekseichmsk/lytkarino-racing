@@ -2157,7 +2157,9 @@ const W=(lx,lz)=>{const c=Math.cos(V.h),s2=Math.sin(V.h);return [V.x+lx*c+lz*s2,
 const bag=new THREE.Group();bag.visible=false;S.add(bag);{const ph=new THREE.Mesh(new THREE.BoxGeometry(.6,.3,1.85),new THREE.MeshLambertMaterial({color:0x151515}));bag.add(ph);bag.ph=ph;}
 const gur=new THREE.Group();gur.visible=false;S.add(gur);const GW=[];{const ph=new THREE.Mesh(new THREE.BoxGeometry(.72,.08,1.86),new THREE.MeshLambertMaterial({color:0x333333}));ph.position.y=.92;gur.add(ph);gur.ph=ph;}
 if(THREE.GLTFLoader){const ld=new THREE.GLTFLoader();
- ld.load('models/bodybag.glb',g=>{const m=g.scene;m.scale.setScalar(.9);m.traverse(o=>{if(o.isMesh){o.castShadow=!mobile;if(o.material.map)o.material.map.magFilter=THREE.NearestFilter;}});bag.remove(bag.ph);bag.add(m);},undefined,()=>{});
+ ld.load('models/bodybag.glb',g=>{const m0=g.scene,m=new THREE.Group();m.add(m0);m0.updateMatrixWorld(true);{// normalise: length 1.8 m along Z, centred, >=0.3 m tall
+ let b=new THREE.Box3().setFromObject(m0),sz=b.getSize(new THREE.Vector3());if(sz.x>sz.z)m0.rotation.y=Math.PI/2;m0.updateMatrixWorld(true);b=new THREE.Box3().setFromObject(m0);sz=b.getSize(new THREE.Vector3());
+ const k=1.8/sz.z;m0.scale.multiplyScalar(k);m0.updateMatrixWorld(true);b=new THREE.Box3().setFromObject(m0);sz=b.getSize(new THREE.Vector3());if(sz.y<.3){m.scale.y=.3/sz.y;}const c=b.getCenter(new THREE.Vector3());m0.position.sub(c);window.__BAGSZ=[sz.x,sz.y*m.scale.y,sz.z];}m.traverse(o=>{if(o.isMesh){o.castShadow=!mobile;if(o.material.map)o.material.map.magFilter=THREE.NearestFilter;}});bag.remove(bag.ph);bag.add(m);},undefined,()=>{});
  ld.load('models/gurney.glb',g=>{const m=g.scene;m.updateMatrixWorld(true);gur.remove(gur.ph);m.traverse(o=>{if(!o.isMesh)return;const geo=o.geometry.clone().applyMatrix4(o.matrixWorld);const mm=new THREE.Mesh(geo,o.material);mm.castShadow=!mobile;
    if(/Wheel_Rubber|Outer_Wheel|Wheel Rubber|Outer Wheel/.test(o.name)){geo.computeBoundingBox();const c=geo.boundingBox.getCenter(new THREE.Vector3());geo.translate(-c.x,-c.y,-c.z);const pv=new THREE.Group();pv.position.copy(c);pv.add(mm);gur.add(pv);GW.push(pv);}else gur.add(mm);});},undefined,()=>{});}
 const GH=.97;// gurney mattress top
@@ -2205,7 +2207,7 @@ const stepMedics=dt=>{const ph=AMB.ph;AMB.pt=(AMB.pt||0)+dt;const nx=p=>{AMB.ph=
    moveObj(gur,AMB.cc[0],AMB.cc[1]);gur.rotation.y=AMB.ca;const fx=Math.sin(AMB.ca),fz=Math.cos(AMB.ca);medics.forEach((m,i)=>{const e=i?-1:1;m.g.position.x=AMB.cc[0]+fx*1.3*e;m.g.position.z=AMB.cc[1]+fz*1.3*e;m.g.rotation.y=AMB.ca;});
    if(fin){medics.forEach(m=>{m.pose=null;hp(m,'Walk',.25);});nx(AMB.after);}}
  else if(ph==='tobody'){if(AMB.fr===1){// lay the empty bag on the road between gurney and body; gather the remains: detached limbs first, torso last
-    const bx=(AMB.gT[0]+inc.x)/2,bz=(AMB.gT[1]+inc.z)/2;bag.visible=true;bag.position.set(bx,.17,bz);bag.rotation.y=gur.rotation.y;bag.scale.set(1,.3,1);AMB.bf=0;
+    const bx=(AMB.gT[0]+inc.x)/2,bz=(AMB.gT[1]+inc.z)/2;bag.visible=true;bag.position.set(bx,.17,bz);bag.rotation.y=gur.rotation.y;bag.scale.set(1,.45,1);AMB.bf=0;
     const it=PED.parts.filter(o=>o.own===inc.p&&o.m!==inc.p.g).map(o=>o.m);PED.parts=PED.parts.filter(o=>o.own!==inc.p);it.push(inc.p.g);const _w=new THREE.Vector3();AMB.items=it.filter(m=>{if(!m||!m.parent)return false;m.getWorldPosition(_w);if(Math.hypot(_w.x-inc.x,_w.z-inc.z)>10&&m!==inc.p.g){m.parent.remove(m);return false;}return true;}).slice(-6);AMB.ni=AMB.items.length;AMB.spk=0;}
    nx('collect');}
  else if(ph==='collect'){const it=AMB.items[0];if(!it){AMB.cur=null;medics.forEach(m=>{m.pose=null;m.reach=null;hp(m,'Walk',.25);});nx('lift');}
@@ -2219,7 +2221,7 @@ const stepMedics=dt=>{const ph=AMB.ph;AMB.pt=(AMB.pt||0)+dt;const nx=p=>{AMB.ph=
     else if(C.st==='fly'){C.t+=dt;const k=Math.min(1,C.t/.6),bp=bag.position;it.position.set(C.from.x+(bp.x-C.from.x)*k,C.from.y+(bp.y+.1-C.from.y)*k+Math.sin(k*Math.PI)*.35,C.from.z+(bp.z-C.from.z)*k);it.scale.setScalar(C.s0*(1-k*.85));
      if(k>=1){if(it===inc.p.g){cleanBody(inc.p);inc.done=1;}else if(it.parent)it.parent.remove(it);AMB.items.shift();AMB.cur=null;bag.scale.y=.3+.7*(1-AMB.items.length/AMB.ni);if(AMB.items.length===1)medics.forEach(x=>{x.pose=null;});}}}
    AMB.spk-=dt;}
- else if(ph==='lift'){// both take the bag ends, lift it onto the gurney
+ else if(ph==='lift'){bag.scale.set(1,1,1);// both take the bag ends, lift it onto the gurney
    const r=bag.rotation.y,fx=Math.sin(r),fz=Math.cos(r);if(!AMB.lift){let ok=1;medics.forEach((m,i)=>{const e=i?-1:1;if(!walkTo(m,[bag.position.x+fx*1.05*e,bag.position.z+fz*1.05*e],dt,1.2))ok=0;});if(ok){AMB.lift=AMB.pt;AMB.b0=bag.position.clone();medics.forEach(m=>{m.g.rotation.y=Math.atan2(gur.position.x-m.g.position.x,gur.position.z-m.g.position.z);hp(m,'Idle',.2);m.pose='carry';m.lead=false;});if(PED.say)PED.say(medics[1],'medic',true);}}
    else{const k=Math.min(1,(AMB.pt-AMB.lift)/1.6),e=k*k*(3-2*k);bag.position.set(AMB.b0.x+(gur.position.x-AMB.b0.x)*e,AMB.b0.y+(GH+.17-AMB.b0.y)*Math.min(1,k*1.6),AMB.b0.z+(gur.position.z-AMB.b0.z)*e);medics.forEach((m,i)=>{const ee=i?-1:1;m.g.position.x=bag.position.x+fx*1.05*ee;m.g.position.z=bag.position.z+fz*1.05*ee;});
     if(k>=1){AMB.lift=0;AMB.bagOnG=1;medics.forEach(m=>m.pose=null);AMB.wp=[W(AMB.sg*2.7,3.5),W(AMB.sg*2.7,-6.4),W(0,-6.6),W(0,-4.6)];AMB.wi=0;AMB.cc=[gur.position.x,gur.position.z];AMB.ca=gur.rotation.y;AMB.after='loadG';medics.forEach(m=>hp(m,'Walk',.25));nx('grip');}}}
