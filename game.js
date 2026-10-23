@@ -1609,24 +1609,37 @@ const PED={list:[],parts:[],blood:[],kills:0,ready:false};window.__PED=PED;
  const bloodM=new THREE.MeshLambertMaterial({color:0x7a0000}),bloodD=new THREE.MeshBasicMaterial({color:0x4a0000,transparent:true,opacity:.85,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3});
  const gPool=new THREE.CircleGeometry(1,14).rotateX(-Math.PI/2),gDrop=new THREE.SphereGeometry(.035,4,3),gStump=new THREE.SphereGeometry(.07,6,4);
  // --- assets
- const T={F:[],M:[],P:[],D:[],K:[]};let CLIPS={};
+ const T={F:[],M:[],P:[],D:[],K:[]};let CLIPS={},SRCB={};
+ // per-character retarget: world-space rest-relative rotation deltas (source rig rest -> this character's rest), so differing bone rolls/rests don't twist limbs
+ const retarget=t=>{if(t.clips)return t.clips;const CB={};t.sk.skeleton.bones.forEach(b=>{CB[b.name]={q:t.rest[b.name],par:b.parent&&b.parent.isBone?b.parent.name:null};});
+  const order=[];const seen={};const add=n=>{if(seen[n]||!CB[n])return;if(CB[n].par)add(CB[n].par);seen[n]=1;order.push(n);};Object.keys(CB).forEach(add);
+  const wr=(B,get)=>{const W={};const sp=(n)=>{if(W[n])return W[n];const b=B[n];const l=get(n);const w=b&&b.par&&B[b.par]?sp(b.par).clone().multiply(l):l.clone();W[n]=w;return w;};return sp;};
+  const SR=wr(SRCB,n=>SRCB[n]?SRCB[n].q:new THREE.Quaternion()),CR=wr(CB,n=>CB[n].q);const hipS=SRCB.mixamorigHips?SRCB.mixamorigHips.p.length():1,hipC=t.restP.mixamorigHips?t.restP.mixamorigHips.length():1,hr=hipC/hipS;
+  const out={};for(const nm in CLIPS){const c=CLIPS[nm];const qt={},pt=[];c.tracks.forEach(tr=>{const [bn,pr]=tr.name.split('.');if(pr==='quaternion')qt[bn]=tr.createInterpolant();else pt.push(tr);});
+   const N=Math.max(2,Math.round(c.duration*30)+1),times=new Float32Array(N);for(let i=0;i<N;i++)times[i]=Math.min(c.duration,i/30);const vals={};order.forEach(n=>vals[n]=new Float32Array(N*4));
+   const Dq=new THREE.Quaternion(),tmp=new THREE.Quaternion();
+   for(let i=0;i<N;i++){const SW={},CW={};const sw=n=>{if(SW[n])return SW[n];const b=SRCB[n];let l;if(qt[n]){const v=qt[n].evaluate(times[i]);l=new THREE.Quaternion(v[0],v[1],v[2],v[3]);}else l=b?b.q.clone():new THREE.Quaternion();const w=b&&b.par?sw(b.par).clone().multiply(l):l;SW[n]=w;return w;};
+    order.forEach(n=>{let cw;if(SRCB[n]){Dq.copy(sw(n)).multiply(tmp.copy(SR(n)).invert());cw=Dq.clone().multiply(CR(n));}else{const par=CB[n].par;cw=(par?CW[par].clone():new THREE.Quaternion()).multiply(CB[n].q);}CW[n]=cw;const par=CB[n].par;const lq=par?CW[par].clone().invert().multiply(cw):cw.clone();lq.normalize();vals[n].set([lq.x,lq.y,lq.z,lq.w],i*4);});}
+   const tracks=order.map(n=>new THREE.QuaternionKeyframeTrack(n+'.quaternion',times,vals[n]));pt.forEach(tr=>{const v=tr.values.slice();for(let i=0;i<v.length;i++)v[i]*=hr;tracks.push(new THREE.VectorKeyframeTrack(tr.name,tr.times,v));});
+   out[nm]=new THREE.AnimationClip(nm,c.duration,tracks);}
+  t.clips=out;return out;};
  // minimal SkeletonUtils.clone (r149)
  const sclone=src=>{const sm=new Map(),cm=new Map(),c=src.clone();const par=(a,b,f)=>{f(a,b);for(let i=0;i<a.children.length;i++)par(a.children[i],b.children[i],f);};par(src,c,(a,b)=>{sm.set(b,a);cm.set(a,b);});c.traverse(n=>{if(!n.isSkinnedMesh)return;const s=sm.get(n),bn=s.skeleton.bones;n.skeleton=s.skeleton.clone();n.bindMatrix.copy(s.bindMatrix);n.skeleton.bones=bn.map(b=>cm.get(b));n.bind(n.skeleton,n.bindMatrix);});return c;};
  const PART=n=>/Head|Neck/.test(n)?0:/LeftShoulder|LeftArm|LeftForeArm|LeftHand/.test(n)?1:/RightShoulder|RightArm|RightForeArm|RightHand/.test(n)?2:/LeftUpLeg|LeftLeg|LeftFoot|LeftToe/.test(n)?3:/RightUpLeg|RightLeg|RightFoot|RightToe/.test(n)?4:5;
  const JOINT=['Neck','LeftArm','RightArm','LeftUpLeg','RightUpLeg',null];
  if(NP&&THREE.GLTFLoader){const ld=new THREE.GLTFLoader();if(window.MeshoptDecoder)ld.setMeshoptDecoder(MeshoptDecoder);
   ld.load('models/peds/anims.glb',ga=>{ga.animations.forEach(a=>{// keep rotation tracks + hips position only
-    a.tracks=a.tracks.filter(t=>t.name.endsWith('.quaternion')||/Hips\.position/.test(t.name));CLIPS[a.name]=a;});
+    a.tracks=a.tracks.filter(t=>t.name.endsWith('.quaternion')||/Hips\.position/.test(t.name));CLIPS[a.name]=a;});SRCB={};ga.scene.traverse(n=>{if(n.isBone||/mixamorig/.test(n.name))SRCB[n.name]={q:n.quaternion.clone(),p:n.position.clone(),par:n.parent&&/mixamorig/.test(n.parent.name)?n.parent.name:null};});
    ld.load('models/peds/peds.glb',g=>{g.scene.children.slice().forEach(o=>{const k=(o.name||'').split('_')[0];if(!T[k])return;let sk=null;o.traverse(n=>{if(n.isSkinnedMesh)sk=n;});if(!sk)return;
      const m=sk.material;if(m.map){m.map.magFilter=THREE.NearestFilter;m.map.minFilter=THREE.NearestMipmapLinearFilter;m.map.encoding=THREE.sRGBEncoding;}
      sk.material=new THREE.MeshLambertMaterial({map:m.map});sk.frustumCulled=false;o.position.set(0,0,0);o.traverse(n=>{if(n.isBone)n.name=n.name.replace(/_\d+$/,'');});const w=new THREE.Group();w.add(o);w.name=o.name;
      // per-vertex part from dominant bone
      const sw=sk.geometry.attributes.skinWeight,si=sk.geometry.attributes.skinIndex,bp=sk.skeleton.bones.map(b=>PART(b.name)),vp=new Uint8Array(sw.count);for(let i=0;i<sw.count;i++){let bw=-1,bj=0;for(let c=0;c<4;c++){const w=sw.getComponent?sw.getComponent(i,c):[sw.getX(i),sw.getY(i),sw.getZ(i),sw.getW(i)][c];if(w>bw){bw=w;bj=[si.getX(i),si.getY(i),si.getZ(i),si.getW(i)][c];}}vp[i]=bp[bj];}
-     T[k].push({o:w,vp,name:o.name});});
+     const rest={},restP={};sk.skeleton.bones.forEach(b=>{rest[b.name]=b.quaternion.clone();restP[b.name]=b.position.clone();});T[k].push({o:w,vp,name:o.name,sk,rest,restP});});
     PED.ready=true;console.log('PED models',Object.entries(T).map(([k,v])=>k+v.length).join(' '),'clips',Object.keys(CLIPS).join(','));});});}
  const kind=()=>{const night=tod==2,r=Math.random();if(night&&r<.12&&T.K.length)return 'K';if(r<.03&&T.P.length)return 'P';if(r<.05&&T.D.length)return 'D';return Math.random()<.62?'F':'M';};
  const mk=p=>{const k=kind(),L=T[k].length?T[k]:T.F,t=L[Math.random()*L.length|0],o=sclone(t.o);let sk=null;o.traverse(n=>{if(n.isSkinnedMesh)sk=n;});const sc=.95+Math.random()*.1;o.scale.multiplyScalar(sc);S.add(o);
-  const mx=new THREE.AnimationMixer(o),A={};for(const n in CLIPS){A[n]=mx.clipAction(CLIPS[n]);}A.Hit.setLoop(THREE.LoopOnce);A.Death.setLoop(THREE.LoopOnce);A.Death.clampWhenFinished=true;A.Hit.clampWhenFinished=true;
+  const mx=new THREE.AnimationMixer(o),A={},CL=retarget(t);for(const n in CL){A[n]=mx.clipAction(CL[n]);}A.Hit.setLoop(THREE.LoopOnce);A.Death.setLoop(THREE.LoopOnce);A.Death.clampWhenFinished=true;A.Hit.clampWhenFinished=true;
   Object.assign(p,{g:o,sk,t,mx,A,sc,kind:k,cur:null,dead:false,lodf:0,st:'walk',stT:4+Math.random()*20,sp:(k==='K'?1.25:1)*(.95+Math.random()*.35)});play(p,Math.random()<.15?'Walk2':'Walk',0);p.A.Walk.time=Math.random()*1;};
  const play=(p,n,f=.25)=>{const a=p.A[n];if(!a||p.cur===a)return;a.reset().play();if(p.cur)p.cur.crossFadeTo(a,f,false);p.cur=a;};
  const place=p=>{const r=pick();if(!r){p.g.visible=false;p.q=null;return;}p.q=r[0];p.u=r[1];p.dir=Math.random()<.5?1:-1;p.side=(Math.random()-.5)*1.2;p.dead=false;p.g.visible=true;p.flee=0;p.st='walk';p.stT=4+Math.random()*20;play(p,'Walk',0);};
@@ -1675,7 +1688,7 @@ const PED={list:[],parts:[],blood:[],kills:0,ready:false};window.__PED=PED;
   PED.blood.forEach(m=>{const R=m.userData.R;if(m.scale.x<R)m.scale.setScalar(Math.min(R,m.scale.x+dt*R*.6));});
   if(PED.parts.length>500){const o=PED.parts.shift();if(o.drop)S.remove(o.m);}};
 }
-const NAV={on:false,route:null,dest:null,name:'',t:0,next:null};window.__NAV=NAV;window.__ST=st;window.__CAM=cam;window.__CAR=car;{
+const NAV={on:false,route:null,dest:null,name:'',t:0,next:null};window.__NAV=NAV;window.__ST=st;window.__CAM=cam;window.__CAR=car;window.__RND=R;window.__SC=S;{
  const K=(x,z)=>Math.round(x*2)+','+Math.round(z*2),N=new Map(),P=[];const node=(x,z)=>{const k=K(x,z);let i=N.get(k);if(i===undefined){i=P.length;N.set(k,i);P.push([x,z,[]]);}return i;};
  const drv=C.r.filter(r=>!(r.k==='footway'||r.k==='path'||r.k==='steps'||r.k==='cycleway'||r.k==='pedestrian'));
  const OW=new Set();try{(window.SIGNS_OSM&&SIGNS_OSM.ow||[]).forEach(()=>{});}catch(e){}
