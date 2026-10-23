@@ -1,0 +1,3 @@
+fabric_leather_02 by Poly Haven (https://polyhaven.com/a/fabric_leather_02), CC0 1.0; tinted to BMW black.
+velour_velvet by Poly Haven (https://polyhaven.com/a/velour_velvet), CC0 1.0; stored as grey luminance, tinted in-game.
+coated_pine by Poly Haven (https://polyhaven.com/a/coated_pine), CC0 1.0; darkened/warmed for fineline look.
