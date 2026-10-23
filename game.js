@@ -2097,11 +2097,46 @@ const AMB={q:[],st:'idle',t:0};window.__AMB=AMB;
  const L1=new THREE.MeshBasicMaterial({color:0x2050ff}),L2=new THREE.MeshBasicMaterial({color:0xff2020}),LO=new THREE.MeshBasicMaterial({color:0x223344});
  const lb1=new THREE.Mesh(new THREE.BoxGeometry(.55,.16,.3),LO),lb2=lb1.clone();lb1.position.set(.42,2.5,1.0);lb2.position.set(-.42,2.5,1.0);G.add(lb1,lb2);
  const PL=mobile?null:new THREE.PointLight(0x3060ff,0,22,1.5);if(PL){PL.position.set(0,2.8,.5);G.add(PL);}
- if(THREE.GLTFLoader){const ld=new THREE.GLTFLoader();if(window.MeshoptDecoder)ld.setMeshoptDecoder(MeshoptDecoder);ld.load('models/ambulance.glb',gl=>{const m=gl.scene;const b=new THREE.Box3().setFromObject(m),sz=b.getSize(new THREE.Vector3());const k=5.3/Math.max(sz.x,sz.z);m.scale.setScalar(k);if(sz.x>sz.z)m.rotation.y=Math.PI/2;m.updateMatrixWorld(true);const b2=new THREE.Box3().setFromObject(m);m.position.y-=b2.min.y;body.clear();body.add(m);console.log('ambulance model loaded');},undefined,()=>{});}
+ // GAZ-3221 model (Yo.Ri @grox777, CC BY 4.0). Doors are baked into the body mesh, so they are cut out at load time:
+ // side/rear-facing triangles are clipped (Sutherland-Hodgman) against door outlines, moved onto hinge pivots, and the hole is capped dark.
+ const splitDoors=(geo,mat)=>{const P=geo.attributes.position,Nn=geo.attributes.normal,U=geo.attributes.uv;const V8=i=>[P.getX(i),P.getY(i),P.getZ(i),Nn?Nn.getX(i):0,Nn?Nn.getY(i):0,Nn?Nn.getZ(i):0,U?U.getX(i):0,U?U.getY(i):0];
+  const XC=-.21;// door outlines in model units: [test(tri centroid,normal), project v->[a,b], convex polygon]
+  const FD=sd=>({t:(c,n)=>n[0]*sd>.6&&(c[0]-XC)*sd>.8,pj:v=>[v[2],v[1]],poly:[[1.62,.5],[2.74,.5],[2.74,1.6],[2.26,2.17],[1.62,2.17]],hinge:[sd>0?.77:-1.19,2.74],kind:'F',sd,open:-sd*1.2});
+  const RD=sd=>({t:(c,n)=>n[2]<-.6&&c[2]<-1.85,pj:v=>[v[0],v[1]],poly:sd>0?[[-.21,.72],[.59,.72],[.59,2.35],[-.21,2.35]]:[[-.99,.72],[-.21,.72],[-.21,2.35],[-.99,2.35]],hinge:[sd>0?.59:-.99,-2.1],kind:'R',sd,open:-sd*1.7});
+  const DS=[FD(1),FD(-1),RD(1),RD(-1)];DS.forEach(d=>{d.v=[];});const rest=[];
+  const lerp=(p,q,t)=>p.map((x,i)=>x+(q[i]-x)*t);
+  const cut=(poly,pj,A,B)=>{// half-plane left of edge A->B (CCW polygon) => inside
+   const f=v=>{const p=pj(v);return (B[0]-A[0])*(p[1]-A[1])-(B[1]-A[1])*(p[0]-A[0]);};const I=[],O=[];
+   for(let i=0;i<poly.length;i++){const p=poly[i],q=poly[(i+1)%poly.length],fp=f(p),fq=f(q);if(fp>=0)I.push(p);else O.push(p);if((fp>=0)!==(fq>=0)){const x=lerp(p,q,fp/(fp-fq));I.push(x);O.push(x);}}return [I,O];};
+  const fan=(poly,out)=>{for(let i=1;i<poly.length-1;i++)out.push(poly[0],poly[i],poly[i+1]);};
+  for(let i=0;i<P.count;i+=3){const t=[V8(i),V8(i+1),V8(i+2)];const c=[0,1,2].map(k=>(t[0][k]+t[1][k]+t[2][k])/3);const e1=[0,1,2].map(k=>t[1][k]-t[0][k]),e2=[0,1,2].map(k=>t[2][k]-t[0][k]);let n=[e1[1]*e2[2]-e1[2]*e2[1],e1[2]*e2[0]-e1[0]*e2[2],e1[0]*e2[1]-e1[1]*e2[0]];const nl=Math.hypot(...n)||1;n=n.map(x=>x/nl);
+   let cur=t,hit=false;for(const d of DS){if(!d.t(c,n))continue;let inside=cur,outs=[];const pl=d.poly;for(let k=0;k<pl.length&&inside.length>=3;k++){const [I,O]=cut(inside,d.pj,pl[k],pl[(k+1)%pl.length]);if(O.length>=3)outs.push(O);inside=I;}
+    if(inside.length>=3){// face winding in projected space may be CW: cut() works on either since it only tests sides
+     fan(inside,d.v);outs.forEach(o=>fan(o,rest));hit=true;break;}}
+   if(!hit)rest.push(...t);}
+  const mkG=arr=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(arr.flatMap(v=>v.slice(0,3)),3));g.setAttribute('uv',new THREE.Float32BufferAttribute(arr.flatMap(v=>v.slice(6,8)),2));g.computeVertexNormals();return g;};
+  const capM=new THREE.MeshBasicMaterial({color:0x121416,side:THREE.DoubleSide});const out={body:mkG(rest),doors:[]};
+  DS.forEach(d=>{if(!d.v.length)return;const g=mkG(d.v);const hx=d.hinge[0],hz=d.kind==='F'?d.hinge[1]:d.hinge[1];// hinge axis is vertical
+   const piv=new THREE.Group();if(d.kind==='F')piv.position.set(hx,0,hz);else{g.computeBoundingBox();piv.position.set(hx,0,g.boundingBox.max.z);}g.translate(-piv.position.x,0,-piv.position.z);
+   const dm=new THREE.Mesh(g,mat);dm.castShadow=!mobile;piv.add(dm);const cap=new THREE.Mesh(g,capM);cap.position.copy(piv.position);
+   if(d.kind==='F')cap.position.x-=d.sd*.06;else cap.position.z+=.06;Object.assign(piv,{a:0,tg:0,kind:d.kind,sd:d.sd,open:d.open});out.doors.push([piv,cap]);});
+  return out;};
+ const k5=5.5/5.93;
+ if(THREE.GLTFLoader){const ld=new THREE.GLTFLoader();if(window.MeshoptDecoder)ld.setMeshoptDecoder(MeshoptDecoder);ld.load('models/ambulance.glb',gl=>{const m=gl.scene;m.updateMatrixWorld(true);
+  const N=new THREE.Group();N.scale.setScalar(k5);N.position.set(.21*k5,.04*k5,-.775*k5);const ms=[];m.traverse(o=>{if(o.isMesh)ms.push(o);});
+  ms.forEach(o=>{const g=o.geometry.clone().applyMatrix4(o.matrixWorld);const gi=g.index?g.toNonIndexed():g;gi.computeBoundingBox();const bb=gi.boundingBox;const mat=o.material;if(mat.map)mat.map.anisotropy=4;
+   if(bb.max.z-bb.min.z>4){const r=splitDoors(gi,mat);const bm=new THREE.Mesh(r.body,mat);bm.castShadow=!mobile;N.add(bm);DOORS.length=0;r.doors.forEach(([pv,cap])=>{N.add(pv,cap);DOORS.push(pv);});}
+   else{const mm=new THREE.Mesh(gi,mat);mm.castShadow=!mobile;N.add(mm);}});
+  body.clear();body.add(N);
+  // roof lightbar overlay (flashers), headlights, taillights
+  lb1.geometry=lb2.geometry=new THREE.BoxGeometry(.5,.13,.44);lb1.position.set(.27,2.47,.48);lb2.position.set(-.27,2.47,.48);if(PL)PL.position.set(0,2.7,.48);
+  const hm=new THREE.MeshBasicMaterial({color:0xfff4d8}),tm=new THREE.MeshBasicMaterial({color:0xff1a10});
+  [1,-1].forEach(sd=>{const h=new THREE.Mesh(new THREE.PlaneGeometry(.3,.13),hm);h.position.set(sd*.51,.9,2.75);body.add(h);const t=new THREE.Mesh(new THREE.BoxGeometry(.05,.4,.1),tm);t.position.set(sd*.88,1.15,-2.68);body.add(t);});
+  console.log('ambulance model loaded, doors',DOORS.length);},undefined,()=>{});}
  // siren (WebAudio, positional)
  let SR=null;const sirenOn=()=>{if(SR)return;const c=PED.vctx&&PED.vctx();if(!c)return;const o=c.createOscillator(),o2=c.createOscillator(),g=c.createGain(),f=c.createBiquadFilter(),pn=c.createPanner();o.type='triangle';o2.type='square';o2.detune.value=8;f.type='bandpass';f.frequency.value=1100;f.Q.value=.7;g.gain.value=.0;pn.panningModel='equalpower';pn.distanceModel='inverse';pn.refDistance=10;pn.rolloffFactor=1.1;o.connect(f);o2.connect(f);f.connect(g);g.connect(pn);pn.connect(c.destination);o.start();o2.start();SR={o,o2,g,pn,c};};
  const sirenOff=()=>{if(!SR)return;try{SR.o.stop();SR.o2.stop();}catch(e){}SR=null;};
- let V={x:0,z:0,h:0,v:0},route=null,ri=0,inc=null,medics=[],tt=0;AMB.V=V;
+ let V={x:0,z:0,h:0,v:0},route=null,ri=0,inc=null,medics=[],tt=0;AMB.V=V;AMB.G=G;AMB.DOORS=DOORS;
  const go=(from,to)=>{const r=NAV.path&&NAV.path(from[0],from[1],to[0],to[1]);if(!r||r.length<2)return false;route=r;ri=0;V.x=r[0][0];V.z=r[0][1];V.h=Math.atan2(r[1][0]-r[0][0],r[1][1]-r[0][1]);V.v=0;return true;};
  PED.onKill=(p,x,z)=>{AMB.q.push({p,x,z,t:performance.now()});console.log('AMB incident queued',AMB.q.length);};
  const drive=(dt,vmax,stopD)=>{if(!route)return true;// pure pursuit along route, keep right lane
@@ -2113,7 +2148,7 @@ const AMB={q:[],st:'idle',t:0};window.__AMB=AMB;
   let vt=Math.min(vmax,Math.max(2.5,rem*.5))*(Math.abs(dh)>.6?.5:1);if(block)vt=0;if(stopD!==undefined&&rem<stopD)vt=0;V.v+=(vt-V.v)*Math.min(1,dt*(vt<V.v?2.5:1.2));
   V.x+=fx*V.v*dt;V.z+=fz*V.v*dt;return (stopD!==undefined&&rem<stopD&&V.v<.4)||(ri>=route.length-2&&rem<3);};
  const collide=()=>{// heavy OBB vs player car: push the player out and kill its speed
-  const c=Math.cos(V.h),s=Math.sin(V.h),dx=st.x-V.x,dz=st.z-V.z,lx=dx*c-dz*s,lz=dx*s+dz*c,HX=1.05+1.0,HZ=2.65+2.1;
+  const c=Math.cos(V.h),s=Math.sin(V.h),dx=st.x-V.x,dz=st.z-V.z,lx=dx*c-dz*s,lz=dx*s+dz*c,HX=1.05+1.0,HZ=2.75+2.1;
   if(Math.abs(lx)<HX&&Math.abs(lz)<HZ){const px=HX-Math.abs(lx),pz=HZ-Math.abs(lz);let ox=0,oz=0;if(px<pz)ox=Math.sign(lx)*px;else oz=Math.sign(lz)*pz;st.x+=ox*c+oz*s;st.z+=-ox*s+oz*c;if(Math.abs(st.v)>1.5){st.v*=-.25;if(window.__XM&&__XM.shake)__XM.shake(.3);}else st.v*=.5;AMB.hits=(AMB.hits||0)+1;}};
  const cleanBody=p=>{if(!p)return;PED.parts=PED.parts.filter(o=>{if(o.own===p){o.m.parent&&o.m.parent.remove(o.m);return false;}return true;});if(p.g&&p.g.parent)p.g.parent.remove(p.g);p.picked=1;p.respawn=Math.min(p.respawn||0,3);};
  const doorsTo=(k,o)=>DOORS.forEach(d=>{if(d.kind===k)d.tg=o?d.open:0;});const doorsAt=k=>DOORS.every(d=>d.kind!==k||Math.abs(d.a-d.tg)<.05);
@@ -2123,14 +2158,14 @@ const walkTo=(m,t,dt,sp)=>{const P=m.g.position,dx=t[0]-P.x,dz=t[1]-P.z,d=Math.h
 // scripted pickup: stop -> front doors open -> medics step out of the seats -> close -> walk to body -> kneel -> carry bag -> rear doors open -> load -> close -> back to cab -> doors open -> in -> close -> drive
 const stepMedics=dt=>{const ph=AMB.ph;AMB.pt=(AMB.pt||0)+dt;const nx=p=>{AMB.ph=p;AMB.pt=0;if(window.__AMBLOG)console.log('AMB ph',p);};
  if(AMB.st==='park'){AMB.st='medic';nx('fopen');}
- if(ph==='fopen'){doorsTo('F',1);if(doorsAt('F')){for(let i=0;i<2;i++){const sd=i?1:-1,m=PED.spawnChar('D');m.sd=sd;const q=W(sd*.45,1.85);m.g.position.set(q[0],.12,q[1]);m.g.rotation.y=V.h+sd*Math.PI/2;m.g.visible=true;m.play('Walk',.2);medics.push(m);}nx('exit');}}
- else if(ph==='exit'){let ok=1;medics.forEach(m=>{if(!walkTo(m,W(m.sd*1.9,1.85),dt,1.1))ok=0;});if(ok){doorsTo('F',0);nx('tobody');}}
+ if(ph==='fopen'){doorsTo('F',1);if(doorsAt('F')){for(let i=0;i<2;i++){const sd=i?1:-1,m=PED.spawnChar('D');m.sd=sd;const q=W(sd*.45,1.3);m.g.position.set(q[0],.12,q[1]);m.g.rotation.y=V.h+sd*Math.PI/2;m.g.visible=true;m.play('Walk',.2);medics.push(m);}nx('exit');}}
+ else if(ph==='exit'){let ok=1;medics.forEach(m=>{if(!walkTo(m,W(m.sd*1.9,1.3),dt,1.1))ok=0;});if(ok){doorsTo('F',0);nx('tobody');}}
  else if(ph==='tobody'){let ok=1;const fx=inc.x-V.x,fz=inc.z-V.z;medics.forEach(m=>{const d=Math.hypot(fx,fz)||1;if(!walkTo(m,[inc.x-fx/d*.75*m.sd*0+(-fz/d)*.0+m.sd*.7*Math.cos(V.h),inc.z-m.sd*.7*Math.sin(V.h)],dt))ok=0;});if(ok){medics.forEach(m=>{m.g.rotation.y=Math.atan2(inc.x-m.g.position.x,inc.z-m.g.position.z);m.play(m.A.Kneel?'Kneel':(m.A.Pickup?'Pickup':'Sit'),.3);});nx('kneel');}}
  else if(ph==='kneel'){if(AMB.pt>3){cleanBody(inc.p);inc.done=1;bag.visible=true;medics.forEach(m=>m.play('Walk',.3));doorsTo('R',1);nx('carry');}}
- else if(ph==='carry'){let ok=1;medics.forEach(m=>{if(!walkTo(m,W(m.sd*.55,-3.3-(m.sd>0?0:0)),dt,1.1))ok=0;});const a=medics[0].g.position,b2=medics[1].g.position;bag.position.set((a.x+b2.x)/2,.85,(a.z+b2.z)/2);bag.rotation.y=Math.atan2(b2.x-a.x,b2.z-a.z)+Math.PI/2;if(ok&&doorsAt('R')){medics.forEach(m=>{m.g.rotation.y=V.h;m.play('Idle',.3);});nx('load');}}
- else if(ph==='load'){const k=Math.min(1,AMB.pt/1.5),q0=W(0,-3.3),q1=W(0,-1.2);bag.rotation.y=V.h;bag.position.set(q0[0]+(q1[0]-q0[0])*k,.85+.25*k,q0[1]+(q1[1]-q0[1])*k);if(k>=1){bag.visible=false;doorsTo('R',0);medics.forEach(m=>m.play('Walk',.3));nx('tocab');}}
- else if(ph==='tocab'){let ok=1;medics.forEach(m=>{const P=m.g.position,q=W(m.sd*1.9,1.85),mid=W(m.sd*1.9,-2.2);const lx=(P.x-V.x)*Math.cos(V.h)-(P.z-V.z)*Math.sin(V.h);if(Math.abs(lx)<1.6){if(!walkTo(m,mid,dt))ok=0;}else if(!walkTo(m,q,dt))ok=0;});if(ok){doorsTo('F',1);if(doorsAt('F'))nx('enter');}}
- else if(ph==='enter'){let ok=1;medics.forEach(m=>{if(!walkTo(m,W(m.sd*.45,1.85),dt,1.1))ok=0;});if(ok){medics.forEach(m=>S.remove(m.g));medics=[];doorsTo('F',0);nx('fclose');}}
+ else if(ph==='carry'){let ok=1;medics.forEach(m=>{if(!walkTo(m,W(m.sd*.55,-3.6),dt,1.1))ok=0;});const a=medics[0].g.position,b2=medics[1].g.position;bag.position.set((a.x+b2.x)/2,.85,(a.z+b2.z)/2);bag.rotation.y=Math.atan2(b2.x-a.x,b2.z-a.z)+Math.PI/2;if(ok&&doorsAt('R')){medics.forEach(m=>{m.g.rotation.y=V.h;m.play('Idle',.3);});nx('load');}}
+ else if(ph==='load'){const k=Math.min(1,AMB.pt/1.5),q0=W(0,-3.6),q1=W(0,-1.2);bag.rotation.y=V.h;bag.position.set(q0[0]+(q1[0]-q0[0])*k,.85+.25*k,q0[1]+(q1[1]-q0[1])*k);if(k>=1){bag.visible=false;doorsTo('R',0);medics.forEach(m=>m.play('Walk',.3));nx('tocab');}}
+ else if(ph==='tocab'){let ok=1;medics.forEach(m=>{const P=m.g.position,q=W(m.sd*1.9,1.3),mid=W(m.sd*1.9,-2.2);const lx=(P.x-V.x)*Math.cos(V.h)-(P.z-V.z)*Math.sin(V.h);if(Math.abs(lx)<1.6){if(!walkTo(m,mid,dt))ok=0;}else if(!walkTo(m,q,dt))ok=0;});if(ok){doorsTo('F',1);if(doorsAt('F'))nx('enter');}}
+ else if(ph==='enter'){let ok=1;medics.forEach(m=>{if(!walkTo(m,W(m.sd*.45,1.3),dt,1.1))ok=0;});if(ok){medics.forEach(m=>S.remove(m.g));medics=[];doorsTo('F',0);nx('fclose');}}
  else if(ph==='fclose'){if(doorsAt('F')&&AMB.pt>.4){nx('');const away=NAV.nodeAt(V.x,V.z,300,450);if(!away||!go([V.x,V.z],away)){AMB.st='gone';}else{AMB.st='away';sirenOff();sirenOn();}console.log('AMB leaving');}}
  medics.forEach(m=>m.mx.update(dt));};
 AMB.tick=dt=>{dt=Math.min(dt,.05)*FAST;tt+=dt;
