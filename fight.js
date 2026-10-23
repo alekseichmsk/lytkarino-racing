@@ -61,8 +61,7 @@ addEventListener('mouseup',e=>{if(!md||e.button!==0)return;const m=Math.hypot(e.
 cv.addEventListener('contextmenu',e=>{if(PLY.foot)e.preventDefault();});
 addEventListener('keydown',e=>{if(!PLY.foot)return;if(e.code==='KeyE'||e.code==='KeyQ'){e.preventDefault();e.stopImmediatePropagation();if(!e.repeat)attack(e.code==='KeyE'?'combo':'kick');}},true);
 // mobile buttons
-const IC2={fist:'<svg viewBox="0 0 32 32"><path d="M9 14V10a2 2 0 0 1 4 0v3M13 13V9a2 2 0 0 1 4 0v4M17 13V9.5a2 2 0 0 1 4 0V14M21 14v-2a2 2 0 0 1 4 0v6c0 5-3 9-8 9h-2c-4 0-7-3-7-7v-3a2 2 0 0 1 2-2h3a2 2 0 0 1 0 4h-2"/></svg>',
- kick:'<svg viewBox="0 0 32 32"><circle cx="9" cy="6" r="2.6"/><path d="M9 10l1 8-4 9M10 14l-4 2M10 13l5 1M10 18l7-3 9-4"/><path d="M24 7l3 1M25 13l3-1M23 15l2 2" opacity=".7"/></svg>'};
+const IC2={fist:'<img src="ui/ic_fist.webp" alt="" draggable="false">',kick:'<img src="ui/ic_kick.webp" alt="" draggable="false">'};
 const ui=document.getElementById('plyUI');
 if(ui&&PLY.mkB){PLY.IC.fist=IC2.fist;PLY.IC.kick=IC2.kick;const fb=PLY.mkB('fist','right:100px;bottom:112px;width:76px;height:76px',()=>attack('combo'),'E');ui.appendChild(fb);const kb=PLY.mkB('kick','right:172px;bottom:44px;width:56px;height:56px',()=>attack('kick'),'Q');ui.appendChild(kb);}
 // ---------- per frame (called by player.js after mixer update, on foot only)
