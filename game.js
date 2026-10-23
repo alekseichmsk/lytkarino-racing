@@ -2153,21 +2153,54 @@ const AMB={q:[],st:'idle',t:0};window.__AMB=AMB;
  const cleanBody=p=>{if(!p)return;PED.parts=PED.parts.filter(o=>{if(o.own===p){o.m.parent&&o.m.parent.remove(o.m);return false;}return true;});if(p.g&&p.g.parent)p.g.parent.remove(p.g);p.picked=1;p.respawn=Math.min(p.respawn||0,3);};
  const doorsTo=(k,o)=>DOORS.forEach(d=>{if(d.kind===k)d.tg=o?d.open:0;});const doorsAt=k=>DOORS.every(d=>d.kind!==k||Math.abs(d.a-d.tg)<.05);
 const W=(lx,lz)=>{const c=Math.cos(V.h),s2=Math.sin(V.h);return [V.x+lx*c+lz*s2,V.z-lx*s2+lz*c];};
-const bag=new THREE.Mesh(new THREE.BoxGeometry(.55,.32,1.9),new THREE.MeshLambertMaterial({color:0x2a3a2a}));bag.visible=false;S.add(bag);
+const bag=new THREE.Mesh(new THREE.BoxGeometry(.5,.28,2.0),new THREE.MeshLambertMaterial({color:0x2a3a2a}));bag.visible=false;S.add(bag);
 const walkTo=(m,t,dt,sp)=>{const P=m.g.position,dx=t[0]-P.x,dz=t[1]-P.z,d=Math.hypot(dx,dz);if(d<.15)return true;const k=Math.min(d,(sp||1.5)*dt);P.x+=dx/d*k;P.z+=dz/d*k;m.g.rotation.y=Math.atan2(dx,dz);return false;};
-// scripted pickup: stop -> front doors open -> medics step out of the seats -> close -> walk to body -> kneel -> carry bag -> rear doors open -> load -> close -> back to cab -> doors open -> in -> close -> drive
+// medic animation helpers: hard crossfade (stops every other action after the fade -> no residual Sit/Walk weights) + procedural pose layer
+const hp=(m,n,f)=>{const a=m.A[n];if(!a)return;if(m.cur===a&&a.isRunning())return;for(const k in m.A){const o=m.A[k];if(o!==a&&o.isRunning())o.fadeOut(f);}a.reset();a.enabled=true;a.setEffectiveTimeScale(1);a.setEffectiveWeight(1);a.fadeIn(f).play();m.cur=a;m.fade=f+.05;};
+const _q=new THREE.Quaternion(),_q2=new THREE.Quaternion(),_v=new THREE.Vector3(),_v2=new THREE.Vector3(),_ax=new THREE.Vector3();
+const bonesOf=m=>{if(m.B)return m.B;const B={};m.g.traverse(o=>{if(o.isBone){const n=o.name.replace(/^mixamorig:?/,'');B[n]=o;}});m.B=B;m.SV=new Map();
+ m.hands=()=>{const L=B.LeftHand,R=B.RightHand;if(!L||!R){const P=m.g.position;return [P.x,.8,P.z];}L.getWorldPosition(_v);R.getWorldPosition(_v2);return [(_v.x+_v2.x)/2,(_v.y+_v2.y)/2,(_v.z+_v2.z)/2];};return B;};
+const poseRestore=m=>{if(m.SV){m.SV.forEach((q,b)=>b.quaternion.copy(q));m.SV.clear();}m.g.position.y=.12;};
+const rotW=(m,b,axis,ang)=>{if(!b||!ang)return;if(!m.SV.has(b))m.SV.set(b,b.quaternion.clone());b.parent.getWorldQuaternion(_q);_q2.setFromAxisAngle(axis,ang);const inv=_q.clone().invert();b.quaternion.premultiply(inv.multiply(_q2).multiply(_q));b.updateMatrixWorld(true);};
+const aimW=(m,b,c,dir,w)=>{if(!b||!c||!w)return;if(!m.SV.has(b))m.SV.set(b,b.quaternion.clone());b.getWorldPosition(_v);c.getWorldPosition(_v2);_v2.sub(_v).normalize();const d=new THREE.Quaternion().setFromUnitVectors(_v2,dir.clone().normalize());const id=new THREE.Quaternion();d.slerp(id,1-w);b.parent.getWorldQuaternion(_q);const inv=_q.clone().invert();b.quaternion.premultiply(inv.multiply(d).multiply(_q));b.updateMatrixWorld(true);};
+const handY=()=>.8;AMB.dbgW=()=>medics.map(m=>Object.entries(m.A).filter(([k,a])=>a.isRunning()).map(([k,a])=>k+":"+a.getEffectiveWeight().toFixed(2)).join(" ")+" pose="+(m.pose||"-")+" y="+m.g.position.y.toFixed(2)+" hands="+m.hands().map(v=>v.toFixed(2)).join(","));
+const poseApply=(m,dt)=>{const B=bonesOf(m);const tgt=m.pose?1:0;m.pw=(m.pw||0)+Math.sign(tgt-(m.pw||0))*Math.min(Math.abs(tgt-(m.pw||0)),dt*2.2);const w=m.pw;if(w<=0)return;if(m.pose)m.pk=m.pose;const kind=m.pk;
+ _ax.set(1,0,0).applyQuaternion(m.g.quaternion);const F=new THREE.Vector3(0,0,1).applyQuaternion(m.g.quaternion),Dn=new THREE.Vector3(0,-1,0),X=_ax.clone();
+ if(kind==='kneel'){// one knee down (left), right foot planted, torso leaning over the body, hands reaching down
+  rotW(m,B.Spine,X,.38*w);rotW(m,B.Spine1,X,.22*w);rotW(m,B.Neck,X,.15*w);
+  rotW(m,B.RightUpLeg,X,-1.5*w);rotW(m,B.RightLeg,X,1.55*w);rotW(m,B.RightFoot,X,-.1*w);
+  rotW(m,B.LeftUpLeg,X,.12*w);rotW(m,B.LeftLeg,X,1.45*w);rotW(m,B.LeftFoot,X,.5*w);
+  const rd=F.clone().multiplyScalar(.75).add(Dn);[['Left',1],['Right',-1]].forEach(([s,sx])=>{const d=rd.clone().addScaledVector(X,sx*.18);aimW(m,B[s+'Arm'],B[s+'ForeArm'],d,w);aimW(m,B[s+'ForeArm'],B[s+'Hand'],d.clone().addScaledVector(Dn,.4),w);});
+  // drop the hips so the lowest knee/foot touches the ground
+  m.g.updateMatrixWorld(true);let mn=9;['LeftLeg','LeftFoot','LeftToeBase','RightFoot','RightToeBase'].forEach(n=>{if(B[n]){B[n].getWorldPosition(_v);mn=Math.min(mn,_v.y-(n==='LeftLeg'?.07:.03));}});if(mn<9){m.g.position.y-=Math.max(-.1,Math.min(.7,mn));m.g.updateMatrixWorld(true);}}
+ else if(kind==='carry'){// arms straight down, slightly toward the bag (lead: behind, rear: ahead), hands at ~0.8 m on the handles
+  const e=m.lead?-1:1;[['Left',1],['Right',-1]].forEach(([s,sx])=>{const d=Dn.clone().addScaledVector(F,.28*e).addScaledVector(X,-sx*.1);aimW(m,B[s+'Arm'],B[s+'ForeArm'],d,w);aimW(m,B[s+'ForeArm'],B[s+'Hand'],d.clone().addScaledVector(F,.22*e),w);});rotW(m,B.Spine,X,(m.lead?-.04:.08)*w);}
+};
+AMB._P={hp,poseApply,poseRestore,bonesOf};// scripted pickup: stop -> front doors open -> medics step out of the seats -> close -> walk to body -> kneel -> carry bag -> rear doors open -> load -> close -> back to cab -> doors open -> in -> close -> drive
 const stepMedics=dt=>{const ph=AMB.ph;AMB.pt=(AMB.pt||0)+dt;const nx=p=>{AMB.ph=p;AMB.pt=0;if(window.__AMBLOG)console.log('AMB ph',p);};
  if(AMB.st==='park'){AMB.st='medic';nx('fopen');}
- if(ph==='fopen'){doorsTo('F',1);if(doorsAt('F')){for(let i=0;i<2;i++){const sd=i?1:-1,m=PED.spawnChar('D');m.sd=sd;const q=W(sd*.45,1.3);m.g.position.set(q[0],.12,q[1]);m.g.rotation.y=V.h+sd*Math.PI/2;m.g.visible=true;m.play('Walk',.2);medics.push(m);}nx('exit');}}
+ if(ph==='fopen'){doorsTo('F',1);if(doorsAt('F')){for(let i=0;i<2;i++){const sd=i?1:-1,m=PED.spawnChar('D');m.sd=sd;const q=W(sd*.45,1.3);m.g.position.set(q[0],.12,q[1]);m.g.rotation.y=V.h+sd*Math.PI/2;m.g.visible=true;hp(m,'Walk',.2);medics.push(m);}nx('exit');}}
  else if(ph==='exit'){let ok=1;medics.forEach(m=>{if(!walkTo(m,W(m.sd*1.9,1.3),dt,1.1))ok=0;});if(ok){doorsTo('F',0);nx('tobody');}}
- else if(ph==='tobody'){let ok=1;const fx=inc.x-V.x,fz=inc.z-V.z;medics.forEach(m=>{const d=Math.hypot(fx,fz)||1;if(!walkTo(m,[inc.x-fx/d*.75*m.sd*0+(-fz/d)*.0+m.sd*.7*Math.cos(V.h),inc.z-m.sd*.7*Math.sin(V.h)],dt))ok=0;});if(ok){medics.forEach(m=>{m.g.rotation.y=Math.atan2(inc.x-m.g.position.x,inc.z-m.g.position.z);m.play(m.A.Kneel?'Kneel':(m.A.Pickup?'Pickup':'Sit'),.3);});nx('kneel');}}
- else if(ph==='kneel'){if(AMB.pt>3){cleanBody(inc.p);inc.done=1;bag.visible=true;medics.forEach(m=>m.play('Walk',.3));doorsTo('R',1);nx('carry');}}
- else if(ph==='carry'){let ok=1;medics.forEach(m=>{if(!walkTo(m,W(m.sd*.55,-3.6),dt,1.1))ok=0;});const a=medics[0].g.position,b2=medics[1].g.position;bag.position.set((a.x+b2.x)/2,.85,(a.z+b2.z)/2);bag.rotation.y=Math.atan2(b2.x-a.x,b2.z-a.z)+Math.PI/2;if(ok&&doorsAt('R')){medics.forEach(m=>{m.g.rotation.y=V.h;m.play('Idle',.3);});nx('load');}}
- else if(ph==='load'){const k=Math.min(1,AMB.pt/1.5),q0=W(0,-3.6),q1=W(0,-1.2);bag.rotation.y=V.h;bag.position.set(q0[0]+(q1[0]-q0[0])*k,.85+.25*k,q0[1]+(q1[1]-q0[1])*k);if(k>=1){bag.visible=false;doorsTo('R',0);medics.forEach(m=>m.play('Walk',.3));nx('tocab');}}
+ else if(ph==='tobody'){let ok=1;medics.forEach(m=>{const q=W(m.sd*.7,0),t=[inc.x+(q[0]-V.x),inc.z+(q[1]-V.z)];if(!walkTo(m,t,dt))ok=0;});if(ok){medics.forEach(m=>{m.g.rotation.y=Math.atan2(inc.x-m.g.position.x,inc.z-m.g.position.z);hp(m,'Idle',.25);m.pose='kneel';});nx('kneel');}}
+ else if(ph==='kneel'){if(AMB.pt>3.6){medics.forEach(m=>m.pose=null);if(AMB.pt>4.1){cleanBody(inc.p);inc.done=1;
+   // carry route: along the incident side of the van to behind it, last leg heading into the rear doors
+   const c=Math.cos(V.h),s2=Math.sin(V.h),lx=(inc.x-V.x)*c-(inc.z-V.z)*s2,sg=lx>=0?1:-1;AMB.wp=[W(sg*2.7,3.5),W(sg*2.7,-6.8),W(0,-7.2),W(0,-5.0)];AMB.wi=0;
+   const w0=AMB.wp[0];AMB.ca=Math.atan2(w0[0]-inc.x,w0[1]-inc.z);AMB.cc=[inc.x,inc.z];bag.visible=true;bag.rotation.y=AMB.ca;bag.position.set(inc.x,.17,inc.z);medics.forEach(m=>hp(m,'Walk',.25));nx('grab');}}}
+ else if(ph==='grab'){let ok=1;const fx=Math.sin(AMB.ca),fz=Math.cos(AMB.ca);medics.forEach((m,i)=>{const e=i?-1:1;if(!walkTo(m,[AMB.cc[0]+fx*1.2*e,AMB.cc[1]+fz*1.2*e],dt,1.1))ok=0;});
+   if(ok){if(!AMB.lift){AMB.lift=AMB.pt;medics.forEach(m=>{m.g.rotation.y=AMB.ca;hp(m,'Idle',.2);m.pose='carry';m.lead=m===medics[0];});}const k=Math.min(1,(AMB.pt-AMB.lift)/.8);bag.position.y=.17+(handY()-.17)*k;
+    if(k>=1){AMB.lift=0;medics.forEach(m=>hp(m,'Walk',.2));const a0=medics[0].A.Walk,a1=medics[1].A.Walk;if(a0&&a1)a1.time=a0.time;nx('carry');}}}
+ else if(ph==='carry'){const wp=AMB.wp[AMB.wi],dx=wp[0]-AMB.cc[0],dz=wp[1]-AMB.cc[1],d=Math.hypot(dx,dz);let ta=Math.atan2(dx,dz),da=Math.atan2(Math.sin(ta-AMB.ca),Math.cos(ta-AMB.ca));AMB.ca+=Math.max(-1,Math.min(1,da))*Math.min(1,dt*2.2);
+   const sp=1.05*dt*(Math.abs(da)>1.2?.3:1);if(d<.25){if(AMB.wi<AMB.wp.length-1)AMB.wi++;else if(Math.abs(da)<.08){medics.forEach(m=>hp(m,'Idle',.25));nx('load');}}else{AMB.cc[0]+=dx/d*Math.min(d,sp);AMB.cc[1]+=dz/d*Math.min(d,sp);}
+   const fx=Math.sin(AMB.ca),fz=Math.cos(AMB.ca);medics.forEach((m,i)=>{const e=i?-1:1;m.g.position.x=AMB.cc[0]+fx*1.2*e;m.g.position.z=AMB.cc[1]+fz*1.2*e;m.g.rotation.y=AMB.ca;});AMB.bagFollow=1;}
+ else if(ph==='load'){const L=medics[0],F=medics[1],k=Math.min(1,AMB.pt/2.4);if(AMB.pt<.1){L.pose=null;hp(L,'Walk',.2);hp(F,'Walk',.3);}AMB.bagFollow=0;
+   walkTo(L,W(-1.25,-4.2),dt,1.2);if(walkTo(F,W(0,-3.9),dt,.45))hp(F,'Idle',.2);else L.g.position.y;const h=F.hands?F.hands():[F.g.position.x,.8,F.g.position.z];
+   const q1=W(0,-1.3);bag.rotation.y=V.h;const hx=h[0]+Math.sin(V.h)*1.1,hz=h[2]+Math.cos(V.h)*1.1;bag.position.set(hx+(q1[0]-hx)*k*k,h[1]+(1.0-h[1])*k,hz+(q1[1]-hz)*k*k);
+   if(k>=1){bag.visible=false;F.pose=null;doorsTo('R',0);medics.forEach(m=>hp(m,'Walk',.3));nx('tocab');}}
  else if(ph==='tocab'){let ok=1;medics.forEach(m=>{const P=m.g.position,q=W(m.sd*1.9,1.3),mid=W(m.sd*1.9,-2.2);const lx=(P.x-V.x)*Math.cos(V.h)-(P.z-V.z)*Math.sin(V.h);if(Math.abs(lx)<1.6){if(!walkTo(m,mid,dt))ok=0;}else if(!walkTo(m,q,dt))ok=0;});if(ok){doorsTo('F',1);if(doorsAt('F'))nx('enter');}}
  else if(ph==='enter'){let ok=1;medics.forEach(m=>{if(!walkTo(m,W(m.sd*.45,1.3),dt,1.1))ok=0;});if(ok){medics.forEach(m=>S.remove(m.g));medics=[];doorsTo('F',0);nx('fclose');}}
  else if(ph==='fclose'){if(doorsAt('F')&&AMB.pt>.4){nx('');const away=NAV.nodeAt(V.x,V.z,300,450);if(!away||!go([V.x,V.z],away)){AMB.st='gone';}else{AMB.st='away';sirenOff();sirenOn();}console.log('AMB leaving');}}
- medics.forEach(m=>m.mx.update(dt));};
+ medics.forEach(m=>{poseRestore(m);m.mx.update(dt);m.fade=(m.fade||0)-dt;if(m.fade<0&&m.fade>-1){for(const k in m.A)if(m.A[k]!==m.cur&&m.A[k].isRunning()){m.A[k].stop();}m.fade=-2;}m.g.updateMatrixWorld(true);poseApply(m,dt);});
+ if(AMB.bagFollow&&medics.length===2){const a=medics[0].hands(),b2=medics[1].hands();bag.position.set((a[0]+b2[0])/2,(a[1]+b2[1])/2-.05,(a[2]+b2[2])/2);bag.rotation.y=AMB.ca;}};
 AMB.tick=dt=>{dt=Math.min(dt,.05)*FAST;tt+=dt;
   if(AMB.st==='idle'){if(!AMB.q.length||!NAV.nodeAt)return;inc=AMB.q.shift();AMB.inc=inc;if(inc.p&&inc.p.picked)return;const sp=NAV.nodeAt(inc.x,inc.z,NEAR?50:200,NEAR?90:400);if(!sp||Math.hypot(sp[0]-st.x,sp[1]-st.z)<(NEAR?30:150)){AMB.q.unshift(inc);return;}
    if(!go(sp,[inc.x,inc.z])){console.log('AMB no route');return;}AMB.st='to';G.visible=true;sirenOn();console.log('AMB dispatched',Math.hypot(sp[0]-inc.x,sp[1]-inc.z).toFixed(0),'m');}
