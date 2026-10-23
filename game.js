@@ -1,3 +1,4 @@
+window.ICO=window.ICO||(k=>'<img class="gI" src="ui/ic_'+k+'.webp" alt="" draggable="false">');
 (function(){
 'use strict';const PT0=performance.now();let PTl=PT0;const PT=n=>{const t=performance.now();if(/prof/.test(location.search))console.log('PROF',n,(t-PTl).toFixed(0),'ms total',(t-PT0).toFixed(0));PTl=t;};
 const C=window.CITY,Q=location.search,demo=Q.includes('demo'),topv=Q.includes('top'),mobile='ontouchstart' in window;
@@ -707,7 +708,7 @@ PT("pre-landmarks");{const LMs=window.LM||[];const white=new THREE.MeshLambertMa
  '<li><b>Референсы BMW X5 G05</b>: фото с Wikimedia Commons (авторы указаны на страницах файлов, CC BY-SA); размеры: официальные данные BMW (4935×2004×1765, база 2975).</li>'+
  '<li><b>Достопримечательности</b> (модели сделаны вручную по OSM): '+(window.LM||[]).filter(l=>l[3]).map(l=>l[3]).filter((v,i,a)=>a.indexOf(v)==i).join(', ')+'.</li>'+
  '<li><b>Капли на стекле</b>: техника water-map/рефракции по мотивам <a style="color:#8cf" href="https://github.com/codrops/RainEffect" target="_blank">Codrops RainEffect</a> (Lucas Bebber, лицензия Codrops: разрешено встраивать и дорабатывать), собственная реализация шейдера. Звуки дождя и дворников синтезированы. Постэффекты: three.js examples (MIT).<br><b>Звук двигателя</b>: петли motorseamless (Ziph, OpenGameArt «Some sounds», CC0) с кроссфейдом по оборотам + синтезированный V8-слой, турбина и выхлопные хлопки (Web Audio).</li><li><b>Фото-фасады</b>: текстуры по реальным фото Лыткарино (Gemini); ДК «Мир» — фото Bloger iz lyt, Wikimedia Commons, CC BY-SA 4.0.</li><li><b>3D-модель автомобиля</b>: «2024 BMW X5 xDrive40i» — <a style="color:#8cf" href="https://sketchfab.com/3d-models/2024-bmw-x5-xdrive40i-b453ba441ff04f9290955d09c3d46b9f" target="_blank">Sketchfab</a>, автор <a style="color:#8cf" href="https://sketchfab.com/ddiaz-design" target="_blank">ddiaz-design</a>, лицензия <a style="color:#8cf" href="http://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a>; модель упрощена и сжата для браузера (изменённая версия распространяется на тех же условиях).</li><li><b>Движок</b>: three.js r149 (MIT).</li></ul>';
- document.body.appendChild(d);const b=document.createElement('b');b.id='bCr';b.title='Источники и авторы';b.textContent='ⓘ';const fs=document.getElementById('fs');if(fs&&fs.parentNode)fs.parentNode.insertBefore(b,fs);
+ document.body.appendChild(d);const b=document.createElement('b');b.id='bCr';b.title='Источники и авторы';b.innerHTML=ICO('info');const fs=document.getElementById('fs');if(fs&&fs.parentNode)fs.parentNode.insertBefore(b,fs);
  const tg=e=>{e&&e.stopPropagation();d.style.display=d.style.display=='none'?'block':'none';};b.addEventListener('click',tg);b.addEventListener('touchend',e=>{e.preventDefault();tg(e);});d.querySelector('#crx').addEventListener('click',tg);if(/credits/.test(Q))d.style.display='block';}
 PT("photo facades "+JSON.stringify(window.__phc||{}));PT("pre-furn");const FURNCH=[];window.__FURNCH=FURNCH;{const FS0=S.children.length;const F=window.FURN;if(F&&!/nofurn/.test(Q)){const mergeG=(L)=>{const A={position:[],normal:[]};L.forEach(g=>{g=g.index?g.toNonIndexed():g;A.position.push(...g.attributes.position.array);A.normal.push(...g.attributes.normal.array);});const o=new THREE.BufferGeometry();o.setAttribute('position',new THREE.Float32BufferAttribute(A.position,3));o.setAttribute('normal',new THREE.Float32BufferAttribute(A.normal,3));return o;};
 const M4=new THREE.Matrix4(),Qt=new THREE.Quaternion(),V=new THREE.Vector3(),Sc=new THREE.Vector3(),Y=new THREE.Vector3(0,1,0);
@@ -1569,14 +1570,14 @@ const TOD=[{n:'☀️',sky:S.background,fog:0xc9dbe6,sun:.85,sc:0xfff2dd,hemi:.7
  {n:'🌆',sky:skyTex('#2b2f5a','#d9875a','#f2c48a'),fog:0xc9a08a,sun:.45,sc:0xffb070,hemi:.45,lamp:0xffd890},
  {n:'🌙',sky:skyTex('#02040c','#0b1430','#1b2440'),fog:0x0b1020,sun:.05,sc:0x8090c0,hemi:.12,lamp:0xffe2a0}];
 function applyTod(){const t=TOD[tod];if(typeof ambApply=='function')ambApply();if(window.__XM&&__XM.cabMats)__XM.cabMats.forEach(l=>{if(l.emissiveMap)l.emissive.setScalar((l.userData.eK||1)*(tod==0?.2:tod==1?.12:.05));if(l.envMap)l.envMapIntensity=(l.userData.env||.5)*(tod==0?1:tod==1?.5:.12);});if(CABX.fill){CABX.fill.intensity=tod==0?.9:tod==1?.45:.05;CABX.amb.intensity=tod==2?.35:tod==1?.12:0;}if(window.__entLamp)__entLamp.emissiveIntensity=tod==2?1.6:tod==1?.7:.05;__facadeNight(tod==2?1.3:tod==1?.35:0);S.background=t.sky;S.fog.color.setHex(t.fog);sun.intensity=t.sun;sun.color.setHex(t.sc);if(hemi)hemi.intensity=t.hemi;head.material.color.setHex(tod==2?0xffe9b0:0xfff6d8);
- lightsUpd();document.getElementById('bTod').textContent=t.n;try{if(WX.L)weatherApply();}catch(e){}}
+ lightsUpd();{const bt=document.getElementById('bTod');bt.innerHTML=ICO('tod')+'<i>'+t.n+'</i>';}try{if(WX.L)weatherApply();}catch(e){}}
 // light switch: 0 Off/DRL, 1 Auto, 2 Low, 3 High (+ flash-to-pass, auto high beam in Auto)
 const HB={lm:+((/[?&]beam=(\d)/.exec(Q)||[0,1])[1]),hi:false,flash:false,latch:false,gT:0};
 function setLights(v){HB.lm=v?2:0;lightsUpd();}
 function setLM(m){HB.lm=m;HB.latch=m==3;lightsUpd();}
 function lightsUpd(){const kmh=Math.abs(st.v)*3.6;lights=HB.flash||HB.lm>=2||(HB.lm==1&&tod>0);HB.hi=HB.flash||(lights&&(HB.lm==3||HB.latch||(HB.lm==1&&tod==2&&kmh>40)));
  hl.intensity=HB.hi?4.6:lights?2.6:0;if(typeof HLX!='undefined'){try{hl.map=HB.hi?HLX.hi:HLX.lo;}catch(e){}let wet=false;try{wet=WX.w>0;}catch(e){}HLX.cm.uniforms.uI.value=lights&&chase?(tod==2?(wet?.16:.05):tod==1?(wet?.08:.02):(wet?.03:0))*(HB.hi?1.4:1):0;HLX.cones.forEach(m=>m.visible=HLX.cm.uniforms.uI.value>0);}hl.distance=HB.hi?170:60;hl.angle=HB.hi?.42:.52;hl.penumbra=HB.hi?.35:.5;hlT.position.set(0,HB.hi?1.2:-1.5,HB.hi?45:16);
- const b=document.getElementById('bLt');if(b){b.classList.toggle('a',lights);b.textContent=['💡','A','≡D','≣D'][HB.lm];b.style.color=HB.hi?'#6af':'';}}
+ const b=document.getElementById('bLt');if(b){b.classList.toggle('a',lights);b.innerHTML=ICO('light')+(HB.lm?'<i>'+['','A','≡D','≣D'][HB.lm]+'</i>':'');b.style.color=HB.hi?'#6af':'';}}
 
 window.__PHY={step,K,T,setMode:m=>setMode(m)};function setMode(m){st.mode=m;st.dscOn=st.tcOn=m<2;const b=document.getElementById('bMode');b.style.color=['#8cf','#fb6','#f66'][m];}document.getElementById('bMode').onclick=()=>setMode((st.mode+1)%3);addEventListener('keydown',e=>{if(e.code=='KeyM'&&e.shiftKey)setMode((st.mode+1)%3);});setMode(st.mode);{const m=/mode=(\d)/.exec(Q);if(m)setMode(+m[1]);}
 document.getElementById('bLt').onclick=()=>setLM((HB.lm+1)%4);
@@ -1780,7 +1781,7 @@ const NAV={on:false,route:null,dest:null,name:'',t:0,next:null};window.__NAV=NAV
    if((fc++)%3)return;const g=mg,W=180;g.save();g.clearRect(0,0,W,W);g.beginPath();g.arc(90,90,90,0,6.3);g.clip();g.fillStyle='#16202a';g.fillRect(0,0,W,W);g.translate(90,105);g.rotate(Math.PI+st.h);g.scale(.9,.9);g.drawImage(mapC,-mapC.width/2-st.x*MS,-mapC.height/2-st.z*MS);NAV.draw(g,MS,6);g.restore();
    g.fillStyle='#fff';g.beginPath();g.moveTo(90,93);g.lineTo(98,113);g.lineTo(90,108);g.lineTo(82,113);g.fill();const n=NAV.next;if(n){g.fillStyle='rgba(4,8,14,.75)';g.fillRect(40,6,100,26);g.fillStyle='#fff';g.font='bold 15px sans-serif';g.textAlign='center';g.fillText(NAV.txt().split('  ·')[0],90,25);}};}
  // UI: ⌖ button / G key -> search panel (datalist of OSM addresses + named buildings)
- const ui=document.getElementById('ui');if(ui){const b=document.createElement('b');b.id='bNav';b.title='Навигация (G)';b.textContent='⌖';ui.insertBefore(b,ui.firstChild);
+ const ui=document.getElementById('ui');if(ui){const b=document.createElement('b');b.id='bNav';b.title='Навигация (G)';b.innerHTML=ICO('nav');ui.insertBefore(b,ui.firstChild);
   const pn=document.createElement('div');pn.id='navP';pn.style.cssText='position:fixed;top:54px;right:8px;z-index:30;background:rgba(8,12,18,.92);color:#fff;padding:10px;border-radius:10px;font:14px sans-serif;display:none;width:min(340px,86vw)';
   pn.innerHTML='<div style="margin-bottom:6px">Навигация — куда едем?</div><input id="navI" list="navL" placeholder="ул. Набережная, 12 / школа…" style="width:100%;box-sizing:border-box;padding:6px;border-radius:6px;border:0"><datalist id="navL"></datalist><div style="margin-top:8px;display:flex;gap:6px"><button id="navGo">Маршрут</button><button id="navX">Сброс</button><span id="navM" style="color:#8ea0b4"></span></div>';document.body.appendChild(pn);
   const dl=pn.querySelector('#navL');const fill=q=>{q=(q||'').toLowerCase();dl.innerHTML='';let n=0;for(const d of D){if(!q||d[0].toLowerCase().includes(q)){const o=document.createElement('option');o.value=d[0];dl.appendChild(o);if(++n>40)break;}}};fill('');
@@ -1792,10 +1793,10 @@ const NAV={on:false,route:null,dest:null,name:'',t:0,next:null};window.__NAV=NAV
  NAV.snap=(x,z)=>{const i=near(x,z);return i>=0?[P[i][0],P[i][1]]:null;};
  {const FM={open:false,cx:0,cz:0,sc:1.2,dirty:true};NAV.FM=FM;const dv=document.createElement('div');dv.id='fmap';dv.style.cssText='position:fixed;inset:0;z-index:70;background:#121a22;display:none;touch-action:none;user-select:none';
   const cv2=document.createElement('canvas');cv2.style.cssText='position:absolute;inset:0;width:100%;height:100%';dv.appendChild(cv2);
-  const bs='position:absolute;min-width:44px;height:44px;border:0;border-radius:22px;background:rgba(10,16,24,.85);color:#fff;font:bold 20px sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.5);padding:0 12px;cursor:pointer';
-  const btn=(t,css,f)=>{const b=document.createElement('button');b.textContent=t;b.style.cssText=bs+';'+css;b.onpointerdown=e=>e.stopPropagation();b.onclick=e=>{e.stopPropagation();f();};dv.appendChild(b);return b;};
-  btn('✕','top:12px;right:12px',()=>close());btn('+','right:12px;top:40%',()=>zoom(1.5));btn('−','right:12px;top:calc(40% + 54px)',()=>zoom(1/1.5));btn('◎','right:12px;top:calc(40% + 108px)',()=>{FM.cx=st.x;FM.cz=st.z;FM.dirty=true;});
-  const bClr=btn('Сбросить маршрут','left:12px;bottom:14px;font-size:15px',()=>{NAV.stop();FM.dirty=true;});
+  const bs='position:absolute;min-width:44px;height:44px;border:0;border-radius:22px;display:flex;align-items:center;justify-content:center;background:rgba(10,16,24,.85);color:#fff;font:bold 20px sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.5);padding:0 12px;cursor:pointer';
+  const btn=(t,css,f,ic)=>{const b=document.createElement('button');b.className='gB';if(ic){b.innerHTML=ICO(ic)+(t?'<span>'+t+'</span>':'');}else b.textContent=t;b.style.cssText=bs+';'+css+(ic&&!t?';padding:0;width:44px':'');b.onpointerdown=e=>e.stopPropagation();b.onclick=e=>{e.stopPropagation();f();};dv.appendChild(b);return b;};
+  btn('','top:12px;right:12px',()=>close(),'close');btn('','right:12px;top:40%',()=>zoom(1.5),'plus');btn('','right:12px;top:calc(40% + 54px)',()=>zoom(1/1.5),'minus');btn('','right:12px;top:calc(40% + 108px)',()=>{FM.cx=st.x;FM.cz=st.z;FM.dirty=true;},'recenter');
+  const bClr=btn('Сбросить маршрут','left:12px;bottom:14px;font-size:15px;border-radius:24px!important;display:flex;align-items:center;gap:6px;padding:0 16px 0 6px',()=>{NAV.stop();FM.dirty=true;},'clr');
   const info=document.createElement('div');info.style.cssText='position:absolute;left:12px;top:12px;right:70px;color:#dfe8f0;font:14px sans-serif;text-shadow:0 1px 2px #000;pointer-events:none';dv.appendChild(info);document.body.appendChild(dv);
   const g=cv2.getContext('2d');let W=0,H=0,dpr=1;const fit=()=>{dpr=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv2.width=W*dpr;cv2.height=H*dpr;FM.dirty=true;};addEventListener('resize',()=>{if(FM.open)fit();});
   const toS=(x,z)=>[(x-FM.cx)*FM.sc+W/2,(z-FM.cz)*FM.sc+H/2],toW=(px,py)=>[(px-W/2)/FM.sc+FM.cx,(py-H/2)/FM.sc+FM.cz];
@@ -1823,7 +1824,7 @@ const NAV={on:false,route:null,dest:null,name:'',t:0,next:null};window.__NAV=NAV
   dv.addEventListener('wheel',e=>{e.preventDefault();zoom(Math.exp(-e.deltaY*.0015),e.clientX,e.clientY);},{passive:false});
   addEventListener('keydown',e=>{if(document.activeElement&&document.activeElement.tagName==='INPUT')return;if(e.code==='KeyM'&&!e.shiftKey){FM.open?close():open();}else if(e.code==='Escape'&&FM.open)close();});
   const mmE=document.getElementById('navMM');if(mmE){mmE.style.cursor='pointer';mmE.addEventListener('click',open);}
-  if(ui){const b=document.createElement('b');b.id='bMap';b.title='Карта (M)';b.textContent='🗺';b.onclick=open;ui.insertBefore(b,ui.firstChild);}
+  if(ui){const b=document.createElement('b');b.id='bMap';b.title='Карта (M)';b.innerHTML=ICO('map');b.onclick=open;ui.insertBefore(b,ui.firstChild);}
   if(/[?&]fmap/.test(Q))setTimeout(open,1500);}
  {const m=/[?&]nav=(-?\d+),(-?\d+)/.exec(Q);if(m)setTimeout(()=>NAV.go(+m[1],+m[2],'точка'),1500);const m2=/[?&]navto=([^&]+)/.exec(Q);if(m2)setTimeout(()=>{const v=decodeURIComponent(m2[1]).toLowerCase(),d=D.find(d=>d[0].toLowerCase().includes(v));if(d)NAV.go(d[1],d[2],d[0]);},1500);}
 }
@@ -1881,8 +1882,8 @@ function featTick(dt){indT+=dt;if(indT>.333){indT=0;indOn=!indOn;if(st.ind||st.h
  {const kmh=st.v*3.6;if(st.sel==='R'&&st.on){rcHold=8;rcWas=true;}else if(rcWas){rcHold-=dt;if(rcHold<=0||(st.sel==='D'&&Math.abs(kmh)>15)||!st.on)rcWas=false;}rcG.visible=rcWas;{const on=st.on&&(st.sel==='R'||st.rev);RVL.forEach(l=>{l.intensity+=((on?(tod==2?7:tod==1?4:1.2):0)-l.intensity)*Math.min(1,dt*12);l.visible=l.intensity>.05;});rcScr.material.color.setScalar(tod==2?2.4:tod==1?1.5:1);}if(rcWas&&fr%4==0)drawRC();}hudM.visible=!!st.hud&&st.on;if(st.hud&&fr%3==0)drawHud();}
 let rcF=0;function renderRearCam(){if(!rcG.visible||!cab.visible)return;if((rcF++)%(mobile?3:2))return;const bv=body.visible;body.visible=true;cab.visible=false;const gv=GRASS.m&&GRASS.m.visible;if(GRASS.m)GRASS.m.visible=false;R.setRenderTarget(rcRT);R.render(S,rcCam);if(GRASS.m)GRASS.m.visible=gv;R.setRenderTarget(null);body.visible=bv;cab.visible=true;}
 // small popup menu
-{const ui=document.getElementById('ui');const mk=(id,t,ti)=>{const b=document.createElement('b');b.id=id;b.textContent=t;b.title=ti;return b;};
- const pw=mk('bPow','⏻','Start/Stop (Enter)');ui.insertBefore(pw,ui.firstChild);const mn=mk('bMenu','≡','Функции BMW');ui.insertBefore(mn,pw.nextSibling);
+{const ui=document.getElementById('ui');const mk=(id,t,ti)=>{const b=document.createElement('b');b.id=id;if(t.length>2)b.innerHTML=t;else b.textContent=t;b.title=ti;return b;};
+ const pw=mk('bPow',ICO('pow'),'Start/Stop (Enter)');ui.insertBefore(pw,ui.firstChild);const mn=mk('bMenu','≡','Функции BMW');ui.insertBefore(mn,pw.nextSibling);
  const pop=document.createElement('div');pop.id='pop';document.body.appendChild(pop);
  const items=[['◀',()=>ind(-1),'Поворотник (Z)'],['▶',()=>ind(1),'Поворотник (X)'],['⚠',()=>ind('h'),'Аварийка (H)'],['⏲',cruise,'Круиз (C)'],['HUD',()=>st.hud=!st.hud,'Проекция (U)'],['Ⓐ',()=>st.autohold=!st.autohold,'Auto Hold (O)'],['Ⓟ',()=>st.epb=!st.epb,'Электроручник (J)'],['🎨',ambient,'Подсветка (K)']];
  items.forEach(([t,f,ti])=>{const b=document.createElement('b');b.textContent=t;b.title=ti;b.onclick=e=>{e.stopPropagation();f();};b.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();f();},{passive:false});pop.appendChild(b);});
@@ -1891,7 +1892,7 @@ let rcF=0;function renderRearCam(){if(!rcG.visible||!cab.visible)return;if((rcF+
  addEventListener('keydown',e=>{const c=e.code;if(c=='Enter'){audioInit();engineToggle();}if(c=='KeyZ'||c=='KeyQ')ind(-1);if(c=='KeyX')ind(1);if(c=='KeyH')ind('h');if(c=='KeyC'&&!(window.__PLY&&__PLY.foot))cruise();if(c=='KeyU')st.hud=!st.hud;if(c=='KeyO')st.autohold=!st.autohold;if(c=='KeyJ')st.epb=!st.epb;if(c=='KeyK')ambient();});}
 {const m=/sel=([PRND])/.exec(Q);if(m){st.sel=m[1];updGsel();}if(Q.includes('hud'))st.hud=true;if(Q.includes('ind'))st.ind=1;if(Q.includes('amb')&&!/amb=\d/.test(Q))ambient();}
 setTimeout(()=>{const i=document.getElementById('info');if(i)i.style.opacity='0';},9000);
-{const ui=document.getElementById('ui');const b=document.createElement('b');b.id='bCam';b.textContent='🎥';b.title='Вид (V)';ui.insertBefore(b,document.getElementById('fs'));const f=e=>{e&&e.preventDefault();setChase(!chase);};b.onclick=f;b.addEventListener('touchstart',f,{passive:false});addEventListener('keydown',e=>{if(e.code=='KeyV'&&!(window.__PLY&&__PLY.foot))setChase(!chase);});if(Q.includes('chase'))setChase(true);}
+{const ui=document.getElementById('ui');const b=document.createElement('b');b.id='bCam';b.innerHTML=ICO('cam');b.title='Вид (V)';ui.insertBefore(b,document.getElementById('fs'));const f=e=>{e&&e.preventDefault();setChase(!chase);};b.onclick=f;b.addEventListener('touchstart',f,{passive:false});addEventListener('keydown',e=>{if(e.code=='KeyV'&&!(window.__PLY&&__PLY.foot))setChase(!chase);});if(Q.includes('chase'))setChase(true);}
 // ---------- weather: rain / heavy rain, wet road, windshield droplets, wipers (BMW stalk modes incl. auto rain sensor) ----------
 const WX={w:+((/[?&]rain(=(\d))?/.exec(Q)||[0,0,0,'0'])[2]||(/[?&]rain/.test(Q)?1:0)),wm:/[?&]wip=(\d)/.test(Q)?+/[?&]wip=(\d)/.exec(Q)[1]:4,mu:1,ph:0,a:0,aPrev:0,cyc:0,intT:0,drops:0,ws:null,blades:[],t:0,sndT:0};
 WX.w=Math.min(2,WX.w);window.__WX=WX;
@@ -2054,7 +2055,7 @@ function gsetApply(){fit();try{const DD=Math.max(1,GSET.dist);if(!Q.includes('ci
  document.getElementById('gfxX').onclick=()=>pn.style.display='none';window.__gfxPanel=v=>{pn.style.display=v?'block':'none';sync();};if(/[?&]gfxp/.test(Q))__gfxPanel(true);}
 setTimeout(gsetApply,0);
 // ---------- radial menu ----------
-{const ui=document.getElementById('ui');const rb=document.createElement('b');rb.id='bRing';rb.textContent='◎';rb.title='Меню';ui.insertBefore(rb,document.getElementById('bBack'));
+{const ui=document.getElementById('ui');const rb=document.createElement('b');rb.id='bRing';rb.innerHTML=ICO('menu');rb.title='Меню';ui.insertBefore(rb,document.getElementById('bBack'));
  const ring=document.createElement('div');ring.id='ring';document.body.appendChild(ring);
  const IT=[['ABS',()=>st.absOn=!st.absOn,()=>st.absOn],['DSC',()=>st.dscOn=!st.dscOn,()=>st.dscOn],['TC',()=>st.tcOn=!st.tcOn,()=>st.tcOn],
   [()=>['C','S','S+'][st.mode],()=>setMode((st.mode+1)%3),()=>true],[()=>['💡0','💡A','≡D','≣D'][HB.lm],()=>setLM((HB.lm+1)%4),()=>lights],['⚡',()=>{HB.flash=true;lightsUpd();setTimeout(()=>{HB.flash=false;lightsUpd();},450);},()=>HB.hi],['◀',()=>ind(-1),()=>st.ind<0],['▶',()=>ind(1),()=>st.ind>0],['⚠',()=>ind('h'),()=>st.haz],
@@ -2062,12 +2063,12 @@ setTimeout(gsetApply,0);
   [()=>TOD[tod].n,()=>{tod=(tod+1)%3;applyTod();},()=>true],[()=>['☁','🌧','⛈'][WX.w],()=>setWeather((WX.w+1)%3),()=>WX.w>0],[()=>'⌒'+['0','INT','1','2','A'][WX.wm],()=>wiperMode((WX.wm+1)%5),()=>WX.wm>0],['🎥',()=>setChase(!chase),()=>chase],['G',()=>{GFX.on=!GFX.on;try{localStorage.setItem('x5gfx',GFX.on?'1':'0');}catch(e){}},()=>GFX.on],['⚙',()=>__gfxPanel(document.getElementById('gfxP').style.display=='none'),()=>document.getElementById('gfxP').style.display!='none'],['💺',()=>__seatPanel(document.getElementById('seatP').style.display=='none'),()=>document.getElementById('seatP').style.display!='none']];
  const els=IT.map((it,i)=>{const b=document.createElement('b');const a=-Math.PI/2+i/IT.length*Math.PI*2;b.style.left=(95+Math.cos(a)*78-15)+'px';b.style.top=(95+Math.sin(a)*78-15)+'px';
   const f=e=>{e.preventDefault();e.stopPropagation();it[1]();upd();};b.addEventListener('click',f);b.addEventListener('touchstart',f,{passive:false});ring.appendChild(b);return b;});
- function upd(){IT.forEach((it,i)=>{els[i].textContent=typeof it[0]==='function'?it[0]():it[0];els[i].classList.toggle('on',!!it[2]());});}
+ function upd(){IT.forEach((it,i)=>{{const L=typeof it[0]==='function'?it[0]():it[0],RI={'⚙':'gear','🎥':'cam'};if(RI[L])els[i].innerHTML=ICO(RI[L]);else if(/^💡/.test(L))els[i].innerHTML=ICO('light')+'<i>'+L.slice(2)+'</i>';else if(els[i].textContent!==L)els[i].textContent=L;}els[i].classList.toggle('on',!!it[2]());});}
  const open=v=>{ring.classList.toggle('on',v);if(v)upd();};
  const tg=e=>{e.preventDefault();e.stopPropagation();open(!ring.classList.contains('on'));};rb.addEventListener('click',tg);rb.addEventListener('touchstart',tg,{passive:false});
  const close=e=>{if(ring.classList.contains('on')&&!ring.contains(e.target)&&e.target!==rb)open(false);};addEventListener('touchstart',close,{capture:true,passive:true});addEventListener('mousedown',close,true);
  setInterval(()=>{if(ring.classList.contains('on'))upd();},300);if(Q.includes('ring'))open(true);}
-function uiTick(){const p=document.getElementById('bPow');if(p){p.style.color=st.on?'#6f6':'#f66';p.style.boxShadow=st.on?'':((performance.now()/500|0)%2?'0 0 8px #f66':'');}}
+function uiTick(){const p=document.getElementById('bPow');if(p){p.classList.toggle('pon',!!st.on);p.classList.toggle('poff',!st.on&&!!((performance.now()/500|0)%2));}}
 // ---------- tire smoke + skid marks ----------
 const SKN=2400,skP=new Float32Array(SKN*18),skG=new THREE.BufferGeometry();skG.setAttribute('position',new THREE.BufferAttribute(skP,3));
 const skM=new THREE.Mesh(skG,new THREE.MeshBasicMaterial({color:0x111111,transparent:true,opacity:.55,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-.5,polygonOffsetUnits:-4}));skM.frustumCulled=false;skM.renderOrder=4;S.add(skM);let skI=0;const skLast=[null,null,null,null];

@@ -21,7 +21,7 @@ const SND={
   else{noise(t,.05,'bandpass',1800+Math.random()*500,900,1.2,.8*v);tone(t,.06,95,55,.5*v);noise(t+.03,.04,'highpass',3000,5000,.7,.15*v);}}};
 PLY.SND=SND;
 // ---------- aim system
-const ch=document.createElement('div');ch.id='aimDot';ch.style.cssText='position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-4px 0 0 -4px;border-radius:50%;background:#fff;border:1px solid rgba(0,0,0,.75);box-shadow:0 0 2px rgba(0,0,0,.6);z-index:29;pointer-events:none;display:none;transition:transform .08s,background .08s';document.body.appendChild(ch);
+const ch=document.createElement('div');ch.id='aimDot';ch.style.cssText='position:fixed;left:50%;top:50%;width:7px;height:7px;margin:-5px 0 0 -5px;border-radius:50%;background:#fff;border:1.5px solid rgba(0,0,0,.8);box-shadow:0 0 0 3px rgba(255,255,255,.25),0 0 3px rgba(0,0,0,.8);z-index:29;pointer-events:none;display:none;transition:transform .08s,background .08s';document.body.appendChild(ch);
 const AIM={origin:new T.Vector3(),dir:new T.Vector3(0,0,-1),target:null,dist:Infinity,prov:[],register(f){this.prov.push(f);},dot:ch};window.__AIM=AIM;PLY.AIM=AIM;
 // ped provider: ray vs vertical capsule (r .4, 0..1.8)
 AIM.register((o,d)=>{const PED=window.__PED;if(!PED||!PED.list)return null;let best=null;for(const p of PED.list){if(p.dead||!p.g||!p.g.parent)continue;const q=p.g.position;const rx=q.x-o.x,rz=q.z-o.z,hl=d.x*d.x+d.z*d.z||1e-6;let t=(rx*d.x+rz*d.z)/hl;if(t<0)continue;t=Math.min(t,40);
@@ -66,7 +66,7 @@ const ui=document.getElementById('plyUI');
 if(ui&&PLY.mkB){PLY.IC.fist=IC2.fist;PLY.IC.kick=IC2.kick;const fb=PLY.mkB('fist','right:100px;bottom:112px;width:76px;height:76px',()=>attack('combo'),'E');ui.appendChild(fb);const kb=PLY.mkB('kick','right:172px;bottom:44px;width:56px;height:56px',()=>attack('kick'),'Q');ui.appendChild(kb);}
 // ---------- per frame (called by player.js after mixer update, on foot only)
 let sh=0;
-PLY.post=dt=>{gt+=dt;ch.style.display=PLY.foot&&!PLY.seq&&!document.getElementById('fmap')?.style.display.includes('block')?'block':'none';
+PLY.post=dt=>{gt+=dt;ch.style.display=PLY.foot&&!(PLY.seq&&(PLY.seq.k!=='exit'||PLY.seq.t<1.1))&&!document.getElementById('fmap')?.style.display.includes('block')?'block':'none';
  if(PLY.foot&&!PLY.seq)aimUpdate();
  const A=PLY.atk;if(A){A.t+=dt;const a=A.a;if(!A.sw&&A.t>a.hit*.55){A.sw=true;SND.whoosh(a.kick);}if(!A.done&&A.t>=a.hit){A.done=true;doHit(a);}
   if(a.kick){const t=A.t/a.dur,up=sm(.08,.4,t)*(1-sm(.6,.95,t)),B=PLY.B;const root=PLY.root;const rt=_v.set(1,0,0).applyQuaternion(root.getWorldQuaternion(_q2)).clone();
