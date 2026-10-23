@@ -1,0 +1,1 @@
+Pedestrian speech: generated offline with Piper TTS (rhasspy/piper-voices ru_RU irina / dmitri / ruslan medium, MIT-licensed voices), band-limited + compressed, mono Opus 14 kbps. Generator: /workspace/ped/tts.py

@@ -1640,7 +1640,7 @@ const PED={list:[],parts:[],blood:[],kills:0,ready:false};window.__PED=PED;
  const kind=()=>{const night=tod==2,r=Math.random();if(night&&r<.12&&T.K.length)return 'K';if(r<.03&&T.P.length)return 'P';if(r<.05&&T.D.length)return 'D';return Math.random()<.62?'F':'M';};
  const mk=p=>{const k=kind(),L=T[k].length?T[k]:T.F,t=L[Math.random()*L.length|0],o=sclone(t.o);let sk=null;o.traverse(n=>{if(n.isSkinnedMesh)sk=n;});const sc=.95+Math.random()*.1;o.scale.multiplyScalar(sc);S.add(o);
   const mx=new THREE.AnimationMixer(o),A={},CL=retarget(t);for(const n in CL){A[n]=mx.clipAction(CL[n]);}A.Hit.setLoop(THREE.LoopOnce);A.Death.setLoop(THREE.LoopOnce);A.Death.clampWhenFinished=true;A.Hit.clampWhenFinished=true;
-  Object.assign(p,{g:o,sk,t,mx,A,sc,kind:k,cur:null,dead:false,lodf:0,st:'walk',stT:4+Math.random()*20,sp:(k==='K'?1.25:1)*(.95+Math.random()*.35)});play(p,Math.random()<.15?'Walk2':'Walk',0);p.A.Walk.time=Math.random()*1;};
+  Object.assign(p,{pitch:.93+Math.random()*.15,g:o,sk,t,mx,A,sc,kind:k,cur:null,dead:false,lodf:0,st:'walk',stT:4+Math.random()*20,sp:(k==='K'?1.25:1)*(.95+Math.random()*.35)});play(p,Math.random()<.15?'Walk2':'Walk',0);p.A.Walk.time=Math.random()*1;};
  const play=(p,n,f=.25)=>{const a=p.A[n];if(!a||p.cur===a)return;a.reset().play();if(p.cur)p.cur.crossFadeTo(a,f,false);p.cur=a;};
  const place=p=>{const r=pick();if(!r){p.g.visible=false;p.q=null;return;}p.q=r[0];p.u=r[1];p.dir=Math.random()<.5?1:-1;p.side=(Math.random()-.5)*1.2;p.dead=false;p.g.visible=true;p.flee=0;p.st='walk';p.stT=4+Math.random()*20;play(p,'Walk',0);};
  const spray=(x,y,z,vx,vy,vz,n)=>{for(let i=0;i<n;i++){const m=new THREE.Mesh(gDrop,bloodM);m.position.set(x,y,z);S.add(m);PED.parts.push({m,v:new THREE.Vector3(vx*.5+(Math.random()-.5)*4,vy+Math.random()*3,vz*.5+(Math.random()-.5)*4),w:new THREE.Vector3(),t:0,drop:1});}};
@@ -1657,14 +1657,42 @@ const PED={list:[],parts:[],blood:[],kills:0,ready:false};window.__PED=PED;
    const jn=JOINT[pi];if(jn){const b=sk.skeleton.bones.find(b=>b.name.endsWith(jn));if(b){b.getWorldPosition(V2);const s=new THREE.Mesh(gStump,bloodM);s.position.copy(V2).sub(m.position);m.add(s);}}
    g.computeBoundingBox();out.push({m,pi,h:g.boundingBox.max.y-g.boundingBox.min.y});});
   S.remove(p.g);return out;};
- const hit=(p,spd,fx,fz)=>{p.dead=true;PED.kills++;const sev=spd>11;const wp=p.g.position.clone();const up=Math.min(9,spd*.45);
+ const hit=(p,spd,fx,fz)=>{say(p,'pain',true);p.dead=true;PED.kills++;const sev=spd>11;const wp=p.g.position.clone();const up=Math.min(9,spd*.45);
   if(sev){dismember(p).forEach(o=>{const jx=(Math.random()-.5)*6,jz=(Math.random()-.5)*6;PED.parts.push({m:o.m,v:new THREE.Vector3(fx*spd*.9+jx,up*(o.pi===0?1.3:1)+Math.random()*2,fz*spd*.9+jz),w:new THREE.Vector3((Math.random()-.5)*14,(Math.random()-.5)*14,(Math.random()-.5)*14),t:0,bleed:2.5,lim:o.pi===5?'tor':'l',fl:o.pi===5?.15:.06,own:p});});}
   else{// whole model: Hit -> Death clip while flung
    play(p,'Hit',.05);setTimeout(()=>{if(p.dead&&p.A)play(p,'Death',.15);},250);PED.parts.push({m:p.g,v:new THREE.Vector3(fx*spd*.75,up,fz*spd*.75),w:new THREE.Vector3(0,(Math.random()-.5)*3,0),t:0,bleed:1.2,lim:'body',fl:.12,own:p});}
   spray(wp.x,1,wp.z,fx*spd,2,fz*spd,sev?40:16);pool(wp.x,wp.z,sev?1.6:1);
   st.v*=sev?.93:.88;p.respawn=45;p.wx=wp.x;p.wz=wp.z;console.log('PED hit',(spd*3.6).toFixed(0),'km/h',sev?'dismembered':'killed',p.t.name);};
+
+ // ---- pedestrian speech: Piper TTS (ru_RU irina / dmitri / ruslan) pre-rendered opus, WebAudio panner 3D, cooldowns, max 2 at once, subtitles
+ const VX={on:true,vol:.8,man:null,buf:{},act:0,last:0,ctx:null,lst:0};PED.VX=VX;try{const c=JSON.parse(localStorage.getItem('pedvoice')||'null');if(c){VX.on=c.on;VX.vol=c.vol;}}catch(e){}
+ const vctx=()=>{if(window.AU&&AU.ac)return AU.ac;if(typeof AU!=='undefined'&&AU&&AU.ac)return AU.ac;if(!VX.ctx){try{VX.ctx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}return VX.ctx;};
+ const vman=()=>{if(VX.man||VX.lm)return;VX.lm=1;fetch('snd/ped/phrases.json').then(r=>r.json()).then(j=>{VX.man=j;}).catch(e=>console.warn('ped voice manifest',e));};
+ const vbuf=f=>{if(VX.buf[f])return VX.buf[f];const c=vctx();VX.buf[f]=fetch('snd/ped/'+f).then(r=>r.arrayBuffer()).then(a=>new Promise((ok,no)=>c.decodeAudioData(a,ok,no))).catch(e=>{console.warn('ped voice',f,e);return null;});return VX.buf[f];};
+ const sub=document.createElement('div');sub.style.cssText='position:fixed;left:0;top:0;pointer-events:none;z-index:20';document.body.appendChild(sub);const SUBS=[];
+ const say=(p,cat,force)=>{if(!VX.on||VX.vol<=0||!VX.man)return false;const now=performance.now()/1000;if(!force&&(VX.act>=2||now-VX.last<1.2||(p.vcd&&now<p.vcd)))return false;
+  const sx=cat==='killer'?'M':/Female/.test(p.t.name)?'F':'M',L=VX.man[cat]&&VX.man[cat][sx];if(!L||!L.length)return false;const [f,txt]=L[Math.random()*L.length|0];p.vcd=now+(cat==='pain'?0:9+Math.random()*8);VX.last=now;VX.act++;
+  const pos=p.g.position.clone();const el=document.createElement('div');el.textContent=txt;el.style.cssText='position:absolute;transform:translate(-50%,-100%);background:rgba(255,255,255,.9);color:#111;font:600 13px sans-serif;padding:3px 8px;border-radius:10px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.4)'+(cat==='killer'?';background:rgba(30,0,0,.85);color:#f55':'');sub.appendChild(el);const S0={el,p,pos,t:2.2+txt.length*.05};SUBS.push(S0);
+  const c=vctx();vbuf(f).then(b=>{if(!b||!c){VX.act--;return;}const src=c.createBufferSource();src.buffer=b;src.playbackRate.value=p.pitch||1;const pn=c.createPanner();pn.panningModel='HRTF';pn.distanceModel='inverse';pn.refDistance=3;pn.maxDistance=45;pn.rolloffFactor=1.3;
+   const P=p.g.position;if(pn.positionX){pn.positionX.value=P.x;pn.positionY.value=1.6;pn.positionZ.value=P.z;}else pn.setPosition(P.x,1.6,P.z);const g=c.createGain();g.gain.value=VX.vol*(cat==='pain'?1.3:1);src.connect(g);g.connect(pn);pn.connect(c.destination);src.onended=()=>{VX.act=Math.max(0,VX.act-1);};src.start();S0.t=Math.max(S0.t,b.duration/(p.pitch||1)+.6);VX.n=(VX.n||0)+1;});return true;};
+ PED.say=say;
+ const vlisten=()=>{const c=vctx();if(!c||!c.listener)return;const l=c.listener,P=new THREE.Vector3(),F=new THREE.Vector3(0,0,-1);const RC=chase?chaseCam:cam;RC.getWorldPosition(P);F.applyQuaternion(RC.getWorldQuaternion(new THREE.Quaternion()));if(l.positionX){l.positionX.value=P.x;l.positionY.value=P.y;l.positionZ.value=P.z;l.forwardX.value=F.x;l.forwardY.value=F.y;l.forwardZ.value=F.z;l.upX.value=0;l.upY.value=1;l.upZ.value=0;}else{l.setPosition(P.x,P.y,P.z);l.setOrientation(F.x,F.y,F.z,0,1,0);}};
+ const vsubs=dt=>{const V=new THREE.Vector3(),PL=[];for(let i=SUBS.length-1;i>=0;i--){const S0=SUBS[i];S0.t-=dt;if(S0.t<=0){S0.el.remove();SUBS.splice(i,1);continue;}const src=S0.p.dead?S0.pos:S0.p.g.position;const RC=chase?chaseCam:cam;V.set(src.x,src.y+1.95,src.z).project(RC);const vis=V.z<1&&Math.abs(V.x)<1.1&&Math.abs(V.y)<1.1&&S0.p.g.position.distanceTo(RC.getWorldPosition(new THREE.Vector3()))<40;S0.el.style.display=vis?'block':'none';let sx2=(V.x+1)/2*innerWidth,sy2=(1-V.y)/2*innerHeight;if(vis){for(const q of PL)if(Math.abs(q[0]-sx2)<160&&Math.abs(q[1]-sy2)<24)sy2=q[1]-26;PL.push([sx2,sy2]);}S0.el.style.left=sx2+'px';S0.el.style.top=sy2+'px';S0.el.style.opacity=Math.min(1,S0.t*2);}};
+ PED.honkT=0;PED.honk=()=>{PED.honkT=1.6;const c=vctx();if(!c)return;const t=c.currentTime,g=c.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.18,t+.02);g.gain.setValueAtTime(.18,t+.45);g.gain.linearRampToValueAtTime(0,t+.55);g.connect(c.destination);[415,520].forEach(fq=>{const o=c.createOscillator();o.type='square';o.frequency.value=fq;const f=c.createBiquadFilter();f.type='lowpass';f.frequency.value=1800;o.connect(f);f.connect(g);o.start(t);o.stop(t+.6);});};
+ addEventListener('keydown',e=>{if(e.code==='KeyJ'&&!e.repeat)PED.honk();});
+ // settings: 'Речь пешеходов' + volume appended to the settings panel
+ setTimeout(function addUI(){const pn=document.getElementById('gfxP');if(!pn){setTimeout(addUI,1000);return;}const d=document.createElement('div');d.style.cssText='margin-top:8px;border-top:1px solid #345;padding-top:6px';d.innerHTML='<b>🗣 Звук</b><div style="margin:4px 0"><label><input type="checkbox" id="pvOn"> Речь пешеходов</label></div><div>Громкость речи: <span id="pvV"></span><input type="range" id="pvVol" min="0" max="1" step="0.05" style="width:100%"></div><div style="opacity:.6">Гудок: J</div>';pn.appendChild(d);
+  const on=d.querySelector('#pvOn'),vo=d.querySelector('#pvVol'),vv=d.querySelector('#pvV');on.checked=VX.on;vo.value=VX.vol;vv.textContent=Math.round(VX.vol*100)+'%';const sv=()=>{VX.on=on.checked;VX.vol=+vo.value;vv.textContent=Math.round(VX.vol*100)+'%';try{localStorage.setItem('pedvoice',JSON.stringify({on:VX.on,vol:VX.vol}));}catch(e){}};on.onchange=sv;vo.oninput=sv;},500);
+ // per-ped speech triggers (called from tick)
+ const segD=(q,x,z)=>{const dx=q[2]-q[0],dz=q[3]-q[1],L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-q[0])*dx+(z-q[1])*dz)/L2));return Math.hypot(q[0]+dx*t-x,q[1]+dz*t-z);};
+ const vtrig=(p,dd,spd,dt)=>{if(!VX.on)return;if(dd>30)return;
+  if(p.kind==='K'&&tod==2&&dd<16&&Math.random()<dt*.25){say(p,'killer');return;}
+  if(PED.honkT>0&&dd<25&&Math.random()<dt*3){say(p,'angry');return;}
+  if(spd>4&&dd<10&&p.q&&segD(p.q,st.x,st.z)<2.2){if(say(p,'scared')){p.flee=2.5;p.st='walk';play(p,'Run',.15);}return;}
+  if(spd>6&&dd<3.6&&Math.random()<dt*6){say(p,'angry');return;}
+  if(spd<3&&dd<12&&p.kind!=='K'&&Math.random()<dt*.12)say(p,'idle');};
  let fr=0;
- PED.tick=dt=>{dt=Math.min(dt,.05);fr++;if(!PED.ready)return;if(!PED.list.length){for(let i=0;i<NP;i++){const p={};mk(p);place(p);PED.list.push(p);}}
+ PED.tick=dt=>{dt=Math.min(dt,.05);fr++;if(!PED.ready)return;vman();if(PED.honkT>0)PED.honkT-=dt;if(fr%2==0)vlisten();vsubs(dt);if(!PED.list.length){for(let i=0;i<NP;i++){const p={};mk(p);place(p);PED.list.push(p);}}
   const ch=Math.sin(st.h),cc=Math.cos(st.h),spd=Math.abs(st.v);
   for(const p of PED.list){if(p.dead){if(p.mx&&p.g.parent)p.mx.update(dt);p.respawn-=dt;if(p.respawn<=0&&Math.hypot(p.wx-st.x,p.wz-st.z)>60){S.remove(p.g);PED.parts=PED.parts.filter(o=>{if(o.own===p){S.remove(o.m);return false;}return true;});mk(p);place(p);}continue;}
    if(!p.q){if(Math.random()<.01)place(p);continue;}
@@ -1679,6 +1707,7 @@ const PED={list:[],parts:[],blood:[],kills:0,ready:false};window.__PED=PED;
    // LOD: hide > 130 m, animate every 4th frame > 45 m, shadows < 30 m
    const vis=dd<130;p.g.visible=vis;if(vis&&(dd<45||(fr+p.sp*100|0)%4==0))p.mx.update(dd<45?dt:dt*4);p.sk.castShadow=dd<30;
    if(p.flee>0){p.flee-=dt;if(p.flee<=0){play(p,'Walk',.3);p.st='walk';}}else if(spd>8&&dd<16&&(rx*ch+rz*cc)*Math.sign(st.v)>0&&Math.random()<dt*1.2){p.flee=2.5;p.st='walk';p.side+=(rx*cc-rz*ch>0?1:-1)*.8;play(p,'Run',.15);}
+   vtrig(p,dd,spd,dt);
    const lx=rx*cc-rz*ch,lz=rx*ch+rz*cc;if(Math.abs(lx)<1.15&&Math.abs(lz)<2.6){if(spd>2.2){const fx=ch*Math.sign(st.v),fz=cc*Math.sign(st.v);hit(p,spd,fx+lx*.15*cc,fz-lx*.15*ch);}else if(moving)p.dir*=-1;}}
   for(let i=PED.parts.length-1;i>=0;i--){const o=PED.parts[i];o.t+=dt;if(o.rest){if(o.drop&&o.t>1){S.remove(o.m);PED.parts.splice(i,1);}continue;}o.v.y-=9.81*dt;o.m.position.addScaledVector(o.v,dt);
    if(o.lim!=='body'){o.m.rotation.x+=o.w.x*dt;o.m.rotation.y+=o.w.y*dt;o.m.rotation.z+=o.w.z*dt;}else o.m.rotation.y+=o.w.y*dt;
