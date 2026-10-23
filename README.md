@@ -8,3 +8,6 @@
 
 - Pedestrians: user's PSX character packs; animations: Quaternius Universal Animation Library (CC0), retargeted in Blender.
 - Ambulance: **"ГАЗ-3221 Скорая помощь / GAZ-3221 Ambulance R.2"** by Yo.Ri (@grox777), https://sketchfab.com/3d-models/3221-gaz-3221-ambulance-r2-f3daf79ea4e843c8a159e8ead7af6e74 — licensed CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Modified: scaled to 5.5 m, doors cut out of the body mesh at load time onto hinge pivots, added lightbar/head/tail light overlays (models/ambulance.glb).
+- Body bag: **"Dead body in a plastic bag"** by returnhappiness, https://sketchfab.com/3d-models/dead-body-in-a-plastic-bag-714c623018e94d9aa1cc4fdd5f3bb261 — CC BY 4.0 (models/bodybag.glb, scaled).
+- Gurney: **"PS1 Horror Hospital Gurney"** by Jan_Strydom, https://sketchfab.com/3d-models/ps1-horror-hospital-gurney-7fce61ac484343959e25208bc75c08ff — CC BY 4.0 (models/gurney.glb; wheels re-pivoted at load time to spin).
+- Paramedic voice lines: Piper TTS (ru_RU dmitri / ruslan / denis voices).
