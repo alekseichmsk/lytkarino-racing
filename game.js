@@ -850,7 +850,7 @@ for(let i=0;i<PN&&longR.length;i++){const o=longR[Math.floor(rnd()*longR.length)
 S.add(pb,ph,pl);
 PT('player car');// ---------- player car + BMW-style cockpit ----------
 const car=new THREE.Group();
-const RVL=[0].map(x=>{const l=new THREE.PointLight(0xfff4e6,0,16,1.4);l.position.set(0,.8,-3.1);car.add(l);l.visible=false;return l;});/* point light: spot lights break r149 cookie-map indexing (hl.map) */window.__RVL=RVL;
+const RVL=[0].map(x=>{const l=new THREE.PointLight(0xfff4e6,0,14,1.6);l.position.set(0,.55,-4.4);car.add(l);l.visible=false;return l;});/* point light: spot lights break r149 cookie-map indexing (hl.map) */window.__RVL=RVL;
 // reverse lamps: two wide white spot lights behind the tailgate (~18 m), always in the scene (intensity 0 when off -> no shader recompile)
 
 // GLB parts with alpha textures came in as transparent+no depth write -> things drew through the body; make them alpha-tested opaque
@@ -1743,7 +1743,7 @@ let pdcT=0,indT=0,indOn=false;
 function featTick(dt){indT+=dt;if(indT>.333){indT=0;indOn=!indOn;if(st.ind||st.haz)blip(indOn?1800:1200,.03,.04);}
  if(st.ind&&Math.abs(st.steer)>.5)st.indArm=1;if(st.ind&&st.indArm&&Math.abs(st.steer)<.1)st.ind=0;
  st.pdc=9;if(st.on&&(st.sel==='R'||(st.sel==='D'&&Math.abs(st.v)<3))){st.pdc=pdcDist();if(st.pdc<2.5){pdcT-=dt;if(pdcT<=0){blip(2400,.06,.05);pdcT=st.pdc<.4?.07:.1+st.pdc*.25;}}}
- {const kmh=st.v*3.6;if(st.sel==='R'&&st.on){rcHold=8;rcWas=true;}else if(rcWas){rcHold-=dt;if(rcHold<=0||(st.sel==='D'&&Math.abs(kmh)>15)||!st.on)rcWas=false;}rcG.visible=rcWas;{const on=st.on&&(st.sel==='R'||st.rev);RVL.forEach(l=>{l.intensity+=((on?(tod==2?38:tod==1?20:6):0)-l.intensity)*Math.min(1,dt*12);l.visible=l.intensity>.05;});rcScr.material.color.setScalar(tod==2?2.4:tod==1?1.5:1);}if(rcWas&&fr%4==0)drawRC();}hudM.visible=!!st.hud&&st.on;if(st.hud&&fr%3==0)drawHud();}
+ {const kmh=st.v*3.6;if(st.sel==='R'&&st.on){rcHold=8;rcWas=true;}else if(rcWas){rcHold-=dt;if(rcHold<=0||(st.sel==='D'&&Math.abs(kmh)>15)||!st.on)rcWas=false;}rcG.visible=rcWas;{const on=st.on&&(st.sel==='R'||st.rev);RVL.forEach(l=>{l.intensity+=((on?(tod==2?7:tod==1?4:1.2):0)-l.intensity)*Math.min(1,dt*12);l.visible=l.intensity>.05;});rcScr.material.color.setScalar(tod==2?2.4:tod==1?1.5:1);}if(rcWas&&fr%4==0)drawRC();}hudM.visible=!!st.hud&&st.on;if(st.hud&&fr%3==0)drawHud();}
 let rcF=0;function renderRearCam(){if(!rcG.visible||!cab.visible)return;if((rcF++)%(mobile?3:2))return;const bv=body.visible;body.visible=true;cab.visible=false;const gv=GRASS.m&&GRASS.m.visible;if(GRASS.m)GRASS.m.visible=false;R.setRenderTarget(rcRT);R.render(S,rcCam);if(GRASS.m)GRASS.m.visible=gv;R.setRenderTarget(null);body.visible=bv;cab.visible=true;}
 // small popup menu
 {const ui=document.getElementById('ui');const mk=(id,t,ti)=>{const b=document.createElement('b');b.id=id;b.textContent=t;b.title=ti;return b;};
