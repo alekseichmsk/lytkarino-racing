@@ -1084,6 +1084,21 @@ if(THREE.GLTFLoader&&!/nomodel/.test(Q)){const ld=new THREE.GLTFLoader();if(wind
    // Poly Haven CC0 cabin textures: fabric_leather_02 (wheel rim, armrests/edges), velour_velvet (seats, doors, headliner lighter), coated_pine (fineline wood trims)
    const CTON=!/[?&]nocabtex/.test(Q)&&!(GSET.preset==='low'||mobile);const CT=!CTON?{}:(()=>{const L=new THREE.TextureLoader(),S=mobile?512:1024,t=(n,srgb)=>{const x=L.load('tex/cab/'+n+S+'.webp');x.wrapS=x.wrapT=THREE.RepeatWrapping;x.anisotropy=4;if(srgb)x.encoding=THREE.sRGBEncoding;return x;};
     return{lc:t('leather_c',1),ln:t('leather_n'),lr:t('leather_r'),vc:t('velour_c',1),vn:t('velour_n'),wc:t('wood_c',1),wn:t('wood_n'),wr:t('wood_r')};})();
+   const woodTrim=cx=>{// thin coated_pine strip meshes laid on the dash face and both front door inserts (new geometry from ray hits on the cabin)
+    car.updateMatrixWorld(true);const ms=[];cx.traverse(o=>{if(o.isMesh&&o.visible&&!/Steering|Body_8|Body_6|Body_11|Glass/i.test(o.name))ms.push(o);});const rc=new THREE.Raycaster(),cw=car.matrixWorld,cwi=cw.clone().invert(),O=new THREE.Vector3(),D=new THREE.Vector3(),N=new THREE.Vector3();
+    const hitL=(o,d)=>{O.copy(o).applyMatrix4(cw);D.copy(d).transformDirection(cw);rc.set(O,D);rc.far=1.2;const h=rc.intersectObjects(ms,false)[0];if(!h||!h.face)return null;N.copy(h.face.normal).transformDirection(h.object.matrixWorld);if(N.dot(D)>0)N.negate();return [h.point.clone().applyMatrix4(cwi),N.clone().transformDirection(cwi)];};
+    const strips=[];
+    // dash: rays forward from the cabin centre plane at the trim height
+    {const P=[];for(let x=-.74;x<=.74;x+=.03){const h=hitL(new THREE.Vector3(x,.975,0),new THREE.Vector3(0,0,1));P.push(h);}strips.push({P,up:new THREE.Vector3(0,1,0),H:.032});}
+    // doors: rays sideways at elbow-insert height
+    for(const sd of[-1,1]){const P=[];for(let z=-.55;z<=.42;z+=.03){const h=hitL(new THREE.Vector3(sd*.2,1.0,z),new THREE.Vector3(sd,0,0));P.push(h);}strips.push({P,up:new THREE.Vector3(0,1,0),H:.026});}
+    const HQ=GSET.preset==='high'||GSET.preset==='ultra',m=HQ?new THREE.MeshPhysicalMaterial({map:CT.wc,normalMap:CT.wn,roughnessMap:CT.wr,roughness:.55,clearcoat:1,clearcoatRoughness:.06,color:0xffffff}):new THREE.MeshStandardMaterial({map:CT.wc,normalMap:CT.wn,roughnessMap:CT.wr,roughness:.55,color:0xffffff});m.normalScale=new THREE.Vector2(.4,.4);m.emissive=new THREE.Color(0xffd0a0);m.emissiveIntensity=1.6;m.emissiveMap=CT.wc;m.side=THREE.DoubleSide;m.polygonOffset=true;m.polygonOffsetFactor=-2;m.polygonOffsetUnits=-2;if(CABX&&CABX.env){m.envMap=CABX.env;m.envMapIntensity=.9;}
+    m.userData.eK=3;m.userData.env=.9;if(window.__XM&&__XM.cabMats)__XM.cabMats.push(m);const g=new THREE.Group();g.name="WoodTrim";let nseg=0;
+    strips.forEach(S0=>{let run=[];const flush=()=>{if(run.length<4){run=[];return;}const pos=[],nor=[],uv=[],idx=[];let L=0;run.forEach((h,i)=>{if(i)L+=h[0].distanceTo(run[i-1][0]);const p=h[0].clone().addScaledVector(h[1],S0.H<.03?.02:.008);const up=S0.up.clone().addScaledVector(h[1],-S0.up.dot(h[1])).normalize();for(const s of[-1,1]){const q=p.clone().addScaledVector(up,s*S0.H/2);pos.push(q.x,q.y,q.z);nor.push(h[1].x,h[1].y,h[1].z);uv.push(L/.3,s<0?0:.12);}if(i){const a=(i-1)*2;idx.push(a,a+1,a+2,a+1,a+3,a+2);}});
+      const G=new THREE.BufferGeometry();G.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));G.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3));G.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));G.setIndex(idx);const me=new THREE.Mesh(G,m);g.add(me);nseg++;run=[];};
+     S0.P.forEach(h=>{if(!h){flush();return;}const pr=run[run.length-1];if(pr&&(h[0].distanceTo(pr[0])>.06||h[1].dot(pr[1])<.6))flush();run.push(h);});flush();});
+    // car-local -> cabin-local
+    cx.updateMatrixWorld(true);const toC=cx.matrixWorld.clone().invert().multiply(cw);g.children.forEach(me=>me.geometry.applyMatrix4(toC));cx.add(g);window.__WOOD=g;console.log('wood trim segments',nseg);};
    const CROLE=!CTON?{}:{Steering_2:'rim',Interior_7:'leather',Interior_8:'velour'};// Interior_2 is the shared INT_MAT atlas mesh (dash/console/spokes): re-UVing it caused the streak garbage
    // r149 BufferGeometry.clone() of GLB interleaved attributes loses the buffer byteOffset -> garbage; deinterleave by hand
    const dcl=g=>{const n=new THREE.BufferGeometry();for(const k in g.attributes){const A=g.attributes[k],it=A.itemSize,arr=new Float32Array(A.count*it);for(let i=0;i<A.count;i++)for(let j=0;j<it;j++)arr[i*it+j]=A.getComponent?A.getComponent(i,j):[A.getX(i),A.getY(i),A.getZ(i),A.getW(i)][j];n.setAttribute(k,new THREE.BufferAttribute(arr,it,A.normalized));}if(g.index)n.setIndex(g.index.clone());g.groups.forEach(q=>n.addGroup(q.start,q.count,q.materialIndex));return n;};
@@ -1134,7 +1149,7 @@ if(THREE.GLTFLoader&&!/nomodel/.test(Q)){const ld=new THREE.GLTFLoader();if(wind
   o.c.position.copy(cp);o.c.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(cp,cp.clone().add(rf),new THREE.Vector3(0,1,0)));
   const w=u1-u0,ht=v1-v0,dist=ctr.distanceTo(E);o.c.fov=2*Math.atan(ht/2/dist)*57.3*fovK;o.c.aspect=w/ht;o.c.near=near;o.c.updateProjectionMatrix();o.fit={w,ht,ctr,N};return true;};
  MIR[0].aim=new THREE.Vector3(0,1.42,2.6);const ok=[fit(MIR[0],c=>Math.abs(c.x)<.13&&c.y>1.42&&c.y<1.5&&c.z<-.4&&c.z>-.53,2.6,.08),fit(MIR[1],c=>c.x<-.89&&c.y>1.12&&c.y<1.3&&c.z<-.54&&c.z>-.66,1.9,.25),fit(MIR[2],c=>c.x>.89&&c.y>1.12&&c.y<1.3&&c.z<-.54&&c.z>-.66,2.2,.25)];
- XM.mirOk=ok;cx.traverse(q=>{if(q.isMesh&&q.name=='Body_8')XM.cabWin=q;});MIR[0].modelCab=true;}cam.position.set(-.394,1.22,.15);XM.cabOk=1;}
+ XM.mirOk=ok;cx.traverse(q=>{if(q.isMesh&&q.name=='Body_8')XM.cabWin=q;});MIR[0].modelCab=true;}cam.position.set(-.394,1.22,.15);XM.cabOk=1;if(CTON&&CT.wc)setTimeout(()=>{try{woodTrim(cx);}catch(e){console.warn('wood trim',e);}},300);}
   if(nw.length==4){body.children.forEach(o=>o.visible=false);WH.length=0;nw.forEach(w=>WH.push(w));body.add(xb);XM.ok=1;console.log('X5 model loaded in',(performance.now()-XM.t0).toFixed(0),'ms');}},undefined,e=>console.warn('X5 model failed, keeping procedural body',e));}
 // ---------- cabin look: PMREM room environment for reflections, procedural leather grain normal, window fill + night ambient lights ----------
 const CABX={};{try{if(THREE.RoomEnvironment&&!(GSET.preset==='low'||mobile)){const pm=new THREE.PMREMGenerator(R);CABX.env=pm.fromScene(new THREE.RoomEnvironment(),.04).texture;pm.dispose();}}catch(e){}
@@ -1660,7 +1675,7 @@ const PED={list:[],parts:[],blood:[],kills:0,ready:false};window.__PED=PED;
   PED.blood.forEach(m=>{const R=m.userData.R;if(m.scale.x<R)m.scale.setScalar(Math.min(R,m.scale.x+dt*R*.6));});
   if(PED.parts.length>500){const o=PED.parts.shift();if(o.drop)S.remove(o.m);}};
 }
-const NAV={on:false,route:null,dest:null,name:'',t:0,next:null};window.__NAV=NAV;window.__ST=st;{
+const NAV={on:false,route:null,dest:null,name:'',t:0,next:null};window.__NAV=NAV;window.__ST=st;window.__CAM=cam;window.__CAR=car;{
  const K=(x,z)=>Math.round(x*2)+','+Math.round(z*2),N=new Map(),P=[];const node=(x,z)=>{const k=K(x,z);let i=N.get(k);if(i===undefined){i=P.length;N.set(k,i);P.push([x,z,[]]);}return i;};
  const drv=C.r.filter(r=>!(r.k==='footway'||r.k==='path'||r.k==='steps'||r.k==='cycleway'||r.k==='pedestrian'));
  const OW=new Set();try{(window.SIGNS_OSM&&SIGNS_OSM.ow||[]).forEach(()=>{});}catch(e){}
