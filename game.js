@@ -1577,7 +1577,7 @@ function lightsUpd(){const kmh=Math.abs(st.v)*3.6;lights=HB.flash||HB.lm>=2||(HB
  hl.intensity=HB.hi?4.6:lights?2.6:0;if(typeof HLX!='undefined'){try{hl.map=HB.hi?HLX.hi:HLX.lo;}catch(e){}let wet=false;try{wet=WX.w>0;}catch(e){}HLX.cm.uniforms.uI.value=lights&&chase?(tod==2?(wet?.16:.05):tod==1?(wet?.08:.02):(wet?.03:0))*(HB.hi?1.4:1):0;HLX.cones.forEach(m=>m.visible=HLX.cm.uniforms.uI.value>0);}hl.distance=HB.hi?170:60;hl.angle=HB.hi?.42:.52;hl.penumbra=HB.hi?.35:.5;hlT.position.set(0,HB.hi?1.2:-1.5,HB.hi?45:16);
  const b=document.getElementById('bLt');if(b){b.classList.toggle('a',lights);b.textContent=['💡','A','≡D','≣D'][HB.lm];b.style.color=HB.hi?'#6af':'';}}
 
-window.__PHY={step,K,T,setMode:m=>setMode(m)};function setMode(m){st.mode=m;st.dscOn=st.tcOn=m<2;const b=document.getElementById('bMode');b.style.color=['#8cf','#fb6','#f66'][m];}document.getElementById('bMode').onclick=()=>setMode((st.mode+1)%3);addEventListener('keydown',e=>{if(e.code=='KeyM')setMode((st.mode+1)%3);});setMode(st.mode);{const m=/mode=(\d)/.exec(Q);if(m)setMode(+m[1]);}
+window.__PHY={step,K,T,setMode:m=>setMode(m)};function setMode(m){st.mode=m;st.dscOn=st.tcOn=m<2;const b=document.getElementById('bMode');b.style.color=['#8cf','#fb6','#f66'][m];}document.getElementById('bMode').onclick=()=>setMode((st.mode+1)%3);addEventListener('keydown',e=>{if(e.code=='KeyM'&&e.shiftKey)setMode((st.mode+1)%3);});setMode(st.mode);{const m=/mode=(\d)/.exec(Q);if(m)setMode(+m[1]);}
 document.getElementById('bLt').onclick=()=>setLM((HB.lm+1)%4);
 document.getElementById('bTod').onclick=()=>{tod=(tod+1)%3;applyTod();};if(/night/.test(Q)){tod=2;applyTod();}
 {const b=document.getElementById('bBack');const on=e=>{e.preventDefault();lookBack=true;b.classList.add('a');},off=()=>{lookBack=false;b.classList.remove('a');};
@@ -1787,6 +1787,43 @@ const NAV={on:false,route:null,dest:null,name:'',t:0,next:null};window.__NAV=NAV
   pn.querySelector('#navGo').onclick=()=>{const v=inp.value.toLowerCase();const d=D.find(d=>d[0].toLowerCase()===v)||D.find(d=>d[0].toLowerCase().includes(v));const m=pn.querySelector('#navM');if(!d){m.textContent='не найдено';return;}m.textContent=NAV.go(d[1],d[2],d[0])?Math.round(NAV.len)+' м':'нет пути';if(NAV.on)setTimeout(()=>pn.style.display='none',600);};
   pn.querySelector('#navX').onclick=()=>{NAV.stop();pn.style.display='none';};
   const tg=()=>{pn.style.display=pn.style.display==='none'?'block':'none';if(pn.style.display==='block')inp.focus();};b.onclick=tg;addEventListener('keydown',e=>{if(e.code==='KeyG'&&document.activeElement!==inp)tg();});}
+ // ---- fullscreen map: tap minimap / 🗺 button / M key; drag pan, wheel/pinch/+- zoom, tap = waypoint snapped to the nearest road -> auto route; X/Esc closes
+ NAV.snap=(x,z)=>{const i=near(x,z);return i>=0?[P[i][0],P[i][1]]:null;};
+ {const FM={open:false,cx:0,cz:0,sc:1.2,dirty:true};NAV.FM=FM;const dv=document.createElement('div');dv.id='fmap';dv.style.cssText='position:fixed;inset:0;z-index:70;background:#121a22;display:none;touch-action:none;user-select:none';
+  const cv2=document.createElement('canvas');cv2.style.cssText='position:absolute;inset:0;width:100%;height:100%';dv.appendChild(cv2);
+  const bs='position:absolute;min-width:44px;height:44px;border:0;border-radius:22px;background:rgba(10,16,24,.85);color:#fff;font:bold 20px sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.5);padding:0 12px;cursor:pointer';
+  const btn=(t,css,f)=>{const b=document.createElement('button');b.textContent=t;b.style.cssText=bs+';'+css;b.onpointerdown=e=>e.stopPropagation();b.onclick=e=>{e.stopPropagation();f();};dv.appendChild(b);return b;};
+  btn('✕','top:12px;right:12px',()=>close());btn('+','right:12px;top:40%',()=>zoom(1.5));btn('−','right:12px;top:calc(40% + 54px)',()=>zoom(1/1.5));btn('◎','right:12px;top:calc(40% + 108px)',()=>{FM.cx=st.x;FM.cz=st.z;FM.dirty=true;});
+  const bClr=btn('Сбросить маршрут','left:12px;bottom:14px;font-size:15px',()=>{NAV.stop();FM.dirty=true;});
+  const info=document.createElement('div');info.style.cssText='position:absolute;left:12px;top:12px;right:70px;color:#dfe8f0;font:14px sans-serif;text-shadow:0 1px 2px #000;pointer-events:none';dv.appendChild(info);document.body.appendChild(dv);
+  const g=cv2.getContext('2d');let W=0,H=0,dpr=1;const fit=()=>{dpr=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv2.width=W*dpr;cv2.height=H*dpr;FM.dirty=true;};addEventListener('resize',()=>{if(FM.open)fit();});
+  const toS=(x,z)=>[(x-FM.cx)*FM.sc+W/2,(z-FM.cz)*FM.sc+H/2],toW=(px,py)=>[(px-W/2)/FM.sc+FM.cx,(py-H/2)/FM.sc+FM.cz];
+  const zoom=(k,px,py)=>{px=px===undefined?W/2:px;py=py===undefined?H/2:py;const [wx,wz]=toW(px,py);FM.sc=Math.max(.15,Math.min(8,FM.sc*k));FM.cx=wx-(px-W/2)/FM.sc;FM.cz=wz-(py-H/2)/FM.sc;FM.dirty=true;};
+  const RCOL=r=>r.w>=7?'#e9c46a':r.w>=5?'#d8dee6':'#9aa6b2';const SN=(window.ADDR&&ADDR.s)||[],SNN=(window.ADDR&&ADDR.n)||[];
+  const draw=()=>{FM.dirty=false;g.setTransform(dpr,0,0,dpr,0,0);g.fillStyle='#16202a';g.fillRect(0,0,W,H);const [x0,z0]=toW(0,0),[x1,z1]=toW(W,H),m=40;const vis=p=>p.some(q=>q[0]>x0-m&&q[0]<x1+m&&q[1]>z0-m&&q[1]<z1+m);
+   // buildings
+   if(FM.sc>.35){g.fillStyle='#2b3744';g.strokeStyle='#3a4858';g.lineWidth=1;C.b.forEach(b=>{if(!vis(b.p))return;g.beginPath();b.p.forEach((q,i)=>{const [a,c]=toS(q[0],q[1]);i?g.lineTo(a,c):g.moveTo(a,c);});g.closePath();g.fill();if(FM.sc>1.5)g.stroke();});}
+   // roads (casing + fill)
+   g.lineCap='round';g.lineJoin='round';const RR=C.r.filter(r=>vis(r.p));[0,1].forEach(pass=>RR.forEach(r=>{const foot=/footway|path|steps|cycleway|pedestrian/.test(r.k||'');if(foot&&FM.sc<.8)return;g.strokeStyle=pass?(foot?'#5d6b78':RCOL(r)):'#0c1218';g.lineWidth=Math.max(foot?1:1.5,(r.w||4)*FM.sc*(foot?.5:1))+(pass?0:2);if(foot)g.setLineDash(pass?[3,3]:[]);g.beginPath();r.p.forEach((q,i)=>{const [a,c]=toS(q[0],q[1]);i?g.lineTo(a,c):g.moveTo(a,c);});g.stroke();g.setLineDash([]);}));
+   // route
+   if(NAV.on&&NAV.route){g.strokeStyle='rgba(63,168,255,.95)';g.lineWidth=Math.max(4,5*FM.sc);g.beginPath();NAV.route.forEach((q,i)=>{const [a,c]=toS(q[0],q[1]);i?g.lineTo(a,c):g.moveTo(a,c);});g.stroke();const [a,c]=toS(NAV.dest[0],NAV.dest[1]);g.fillStyle='#ff4a3a';g.strokeStyle='#fff';g.lineWidth=2;g.beginPath();g.moveTo(a,c);g.arc(a,c-18,9,Math.PI*.8,Math.PI*2.2);g.closePath();g.fill();g.stroke();}
+   // street names
+   if(FM.sc>.5){g.font='600 '+(FM.sc>2?13:11)+'px sans-serif';g.textAlign='center';g.textBaseline='middle';const done={},lbl=[];SN.forEach(([ni,q])=>{if(!vis(q)||q.length<2)return;let L=0;for(let i=0;i<q.length-1;i++)L+=Math.hypot(q[i+1][0]-q[i][0],q[i+1][1]-q[i][1]);const nm=SNN[ni];if(!nm||L*FM.sc<nm.length*7)return;let acc=0;for(let i=0;i<q.length-1;i++){const d=Math.hypot(q[i+1][0]-q[i][0],q[i+1][1]-q[i][1]);if(acc+d>=L/2){const t=(L/2-acc)/d,[a,c]=toS(q[i][0]+(q[i+1][0]-q[i][0])*t,q[i][1]+(q[i+1][1]-q[i][1])*t);if(a<0||a>W||c<0||c>H)break;if(lbl.some(p=>Math.hypot(p[0]-a,p[1]-c)<90&&(p[2]===nm||Math.hypot(p[0]-a,p[1]-c)<40)))break;lbl.push([a,c,nm]);let an=Math.atan2(q[i+1][1]-q[i][1],q[i+1][0]-q[i][0]);if(an>Math.PI/2)an-=Math.PI;if(an<-Math.PI/2)an+=Math.PI;g.save();g.translate(a,c);g.rotate(an);g.lineWidth=3;g.strokeStyle='rgba(10,16,24,.9)';g.strokeText(nm,0,0);g.fillStyle='#f0f4f8';g.fillText(nm,0,0);g.restore();break;}acc+=d;}});}
+   // player
+   {const [a,c]=toS(st.x,st.z),an=Math.atan2(Math.cos(st.h),Math.sin(st.h));g.save();g.translate(a,c);g.rotate(an);g.fillStyle='#3fa8ff';g.strokeStyle='#fff';g.lineWidth=2;g.beginPath();g.moveTo(13,0);g.lineTo(-9,9);g.lineTo(-4,0);g.lineTo(-9,-9);g.closePath();g.fill();g.stroke();g.restore();}
+   info.textContent=(NAV.on?NAV.txt()+(NAV.name?'  →  '+NAV.name:''):'Нажмите на карту, чтобы проложить маршрут')+'   ·   '+(window.__ADR?__ADR.txt:'');bClr.style.display=NAV.on?'block':'none';};
+  let lastDraw=0;const loop=t=>{if(!FM.open)return;if(FM.dirty||t-lastDraw>250){lastDraw=t;draw();}requestAnimationFrame(loop);};
+  const open=()=>{if(FM.open)return;FM.open=true;dv.style.display='block';fit();FM.cx=st.x;FM.cz=st.z;requestAnimationFrame(loop);};const close=()=>{FM.open=false;dv.style.display='none';};NAV.mapOpen=open;NAV.mapClose=close;
+  // pointers: drag pan, pinch zoom, tap waypoint
+  const pts=new Map();let moved=0,pinch0=0,sc0=1;
+  dv.addEventListener('pointerdown',e=>{dv.setPointerCapture(e.pointerId);pts.set(e.pointerId,[e.clientX,e.clientY]);moved=pts.size>1?99:0;if(pts.size===2){const [p,q]=[...pts.values()];pinch0=Math.hypot(p[0]-q[0],p[1]-q[1]);sc0=FM.sc;}});
+  dv.addEventListener('pointermove',e=>{const o=pts.get(e.pointerId);if(!o)return;const n=[e.clientX,e.clientY];if(pts.size===1){FM.cx-=(n[0]-o[0])/FM.sc;FM.cz-=(n[1]-o[1])/FM.sc;moved+=Math.abs(n[0]-o[0])+Math.abs(n[1]-o[1]);FM.dirty=true;}pts.set(e.pointerId,n);if(pts.size===2){const [p,q]=[...pts.values()],d=Math.hypot(p[0]-q[0],p[1]-q[1]);if(pinch0>0)zoom(sc0*d/pinch0/FM.sc,(p[0]+q[0])/2,(p[1]+q[1])/2);}});
+  const up=e=>{if(!pts.has(e.pointerId))return;pts.delete(e.pointerId);if(pts.size<2)pinch0=0;if(pts.size===0&&moved<8){const [wx,wz]=toW(e.clientX,e.clientY),sn=NAV.snap(wx,wz);if(sn&&NAV.go(sn[0],sn[1],'Точка на карте'))FM.dirty=true;}};dv.addEventListener('pointerup',up);dv.addEventListener('pointercancel',e=>{pts.delete(e.pointerId);});
+  dv.addEventListener('wheel',e=>{e.preventDefault();zoom(Math.exp(-e.deltaY*.0015),e.clientX,e.clientY);},{passive:false});
+  addEventListener('keydown',e=>{if(document.activeElement&&document.activeElement.tagName==='INPUT')return;if(e.code==='KeyM'&&!e.shiftKey){FM.open?close():open();}else if(e.code==='Escape'&&FM.open)close();});
+  const mmE=document.getElementById('navMM');if(mmE){mmE.style.cursor='pointer';mmE.addEventListener('click',open);}
+  if(ui){const b=document.createElement('b');b.id='bMap';b.title='Карта (M)';b.textContent='🗺';b.onclick=open;ui.insertBefore(b,ui.firstChild);}
+  if(/[?&]fmap/.test(Q))setTimeout(open,1500);}
  {const m=/[?&]nav=(-?\d+),(-?\d+)/.exec(Q);if(m)setTimeout(()=>NAV.go(+m[1],+m[2],'точка'),1500);const m2=/[?&]navto=([^&]+)/.exec(Q);if(m2)setTimeout(()=>{const v=decodeURIComponent(m2[1]).toLowerCase(),d=D.find(d=>d[0].toLowerCase().includes(v));if(d)NAV.go(d[1],d[2],d[0]);},1500);}
 }
 // ---------- current address (OSM street names + addr:housenumber), ~1 Hz, spatial index ----------
