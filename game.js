@@ -1447,7 +1447,7 @@ if(/audtest/.test(Q))setTimeout(()=>{audioInit();setTimeout(()=>console.log('TES
 // ---------- arcade-sim driving ----------
 const DYNO=Q.includes('dyno');const GR=[5.0,3.2,2.143,1.72,1.314,1.0,.822,.64],FD=3.15,RW=.36,MASS=2420,WB=2.975,TRF=1.676,TRR=1.702;// BMW X5 M60i: 4.4 V8 390 kW (530 hp), 750 Nm, ZF 8HP, Vmax 285 (M package)
 function torque(rpm){if(rpm>6600)return 0;if(rpm<1800)return 520+230*Math.max(0,rpm-1000)/800;return Math.min(750,390000/(rpm*Math.PI/30));}
-function step(dt){
+function step(dt){if(window.__PHYHOLD&&!window.__PHYIN)return;
  let thrIn=(K.KeyW||K.ArrowUp)?1:T.gas,brkIn=(K.KeyS||K.ArrowDown)?1:T.brk,stIn=(K.KeyA||K.ArrowLeft?1:0)-((K.KeyD&&!K.ShiftLeft&&!K.ShiftRight)||K.ArrowRight?1:0)-T.steer,hb=(K.Space||T.hb)?1:0;
  if(TST){const r=tstScript(dt);thrIn=r.thr;brkIn=r.br;stIn=r.steer;hb=0;}else if(HBT){dT+=dt;const t=dT;hb=t<1.5?1:0;thrIn=(t>.5&&t<1.5)||(t>3.5&&t<4.5)||t>6.5?1:0;brkIn=(t>4.5&&t<5.5)?1:0;if(t>2&&t<2.05)st.epb=true;if(t>5.6&&t<5.65)st.autohold=true;if(t>5.8&&t<5.85){st.epb=true;}if(t>6.2&&t<6.25)st.epb=false;}else if(DRIFT){const d=driftScript(dt);thrIn=d.thr;brkIn=d.br;stIn=d.steer;hb=d.hb;if(st.mode!=2)setMode(2);}else if(demo){thrIn=Q.includes('full')?1:Q.includes('cruise')?(st.v<36?.5:.3):(st.v<16?1:.35);brkIn=0;stIn=0;hb=0;}
  const s=Math.sin(st.h),c=Math.cos(st.h);let vf=st.vx*s+st.vz*c,vl=st.vx*c-st.vz*s;
@@ -1461,7 +1461,7 @@ function step(dt){
  if(!st.on)thrIn=0;
  const wantT=thrIn,wantB=(st.launch==1)?1:brkIn;
  const MODE=[{thr:3,up:.85,st:3.0,dsc:1},{thr:6,up:1,st:3.5,dsc:.6},{thr:10,up:1.08,st:4.2,dsc:0}][st.mode];st.thr+=(wantT-st.thr)*Math.min(1,dt*MODE.thr*(wantT>st.thr?1/(1+Math.abs(st.steer)*1.5+Math.abs(st.beta||0)*8):1));st.brk+=(wantB-st.brk)*Math.min(1,dt*(wantB>st.brk?16:10));
- const sr=Math.abs(stIn)>Math.abs(st.steer)?MODE.st:6;st.steer+=(stIn-st.steer)*Math.min(1,dt*sr);
+ const vS0=Math.abs(st.vx*Math.sin(st.h)+st.vz*Math.cos(st.h)),sr=(Math.abs(stIn)>Math.abs(st.steer)?MODE.st:6)/(1+vS0/30);st.steer+=(stIn-st.steer)*Math.min(1,dt*sr);// slower steering slew at speed (keyboard taps can't snap full lock)
  st.road=DYNO?!/offrd/.test(Q)||(/mixrd/.test(Q)&&((st.x+st.z)/9|0)%2==0):onRoad(st.x,st.z);st.sf=st.road?0:(DYNO?4:GND.surf(st.x,st.z));const SF=SURF[st.sf],wet01=typeof WX!='undefined'?[0,.75,1][WX.w]||0:0,gr=SF[0]+(SF[1]-SF[0])*wet01;st.grip=gr;
  // gearbox
  const sp=Math.abs(vf);if(st.rev){st.g=0;}else{const rpmG=sp/RW*GR[st.g]*FD*9.549;const up=Math.min(6500,(1700+Math.pow(st.thr,1.5)*4700)*MODE.up),dn=Math.min(1050+Math.pow(st.thr,2)*3300,up*.55);if(rpmG>up&&st.g<7&&st.shift<=0&&!(Math.abs(st.beta||0)>.15&&rpmG<6300)){st.g++;st.shift=.15;}else if(st.g>0&&rpmG<dn&&st.shift<=0&&sp/RW*GR[st.g-1]*FD*9.549<6200){st.g--;st.shift=.12;}}
@@ -1471,11 +1471,11 @@ function step(dt){
  const roll=260+1140*SF[2]+.6*sp*sp*SF[3],drag=.55*vf*vf;if(SF[4]&&sp>1.5)st.bmp=Math.max(st.bmp||0,SF[4]*Math.min(1,sp/12)*(.5+Math.random()*.5));
  // ---- tire model: bicycle model, per-axle Pacejka-like curves, friction circle, xDrive split, ABS/TC/DSC ----
  const mu0=.85*gr;st.muF=st.muF===undefined?mu0:st.muF+(mu0-st.muF)*Math.min(1,dt*3);const mu=st.muF,GG=9.81,AA=1.45,BB=1.525,LL=AA+BB,HC=.62,IZ=4300,DS=Math.max(MODE.dsc,.4);
- const maxA=.52/(1+Math.abs(vf)*.03),delta=st.steer*maxA;// ~30 deg mean (inner ~36) at standstill; variable-ratio sport steering
+ const maxA=.52/(1+Math.pow(Math.abs(vf)/9,1.5)),delta=st.steer*maxA;// speed-sensitive ratio: ~30 deg at standstill, ~16 @30, ~8 @60, ~5 @90, ~3.3 deg @130 km/h// ~30 deg mean (inner ~36) at standstill; variable-ratio sport steering
  const vS=Math.abs(vf),dR=(vS<16.7?-.09*(1-vS/16.7):.04*Math.min(1,(vS-16.7)/10))*delta;// Integral Active Steering: rear opposite <60 km/h, in-phase above
- const pac=x=>{const bx=12*x;return Math.sin(1.45*Math.atan(bx+.2*(bx-Math.atan(bx))));};const pacR=x=>{const bx=12*x;return Math.sin(1.3*Math.atan(bx+.2*(bx-Math.atan(bx))));};/* rear keeps ~89% past the peak (no snap) */// MF: peak ~9 deg, keeps ~89% of peak far past it (no grip collapse)
+ const pac=x=>{const bx=12*x;return Math.sin(1.45*Math.atan(bx+.2*(bx-Math.atan(bx))));};const pacR=x=>{const bx=14.5*x;return Math.sin(1.3*Math.atan(bx+.2*(bx-Math.atan(bx))));};/* rear keeps ~89% past the peak (no snap) */// MF: peak ~9 deg, keeps ~89% of peak far past it (no grip collapse)
  const rearSplit=st.mode==2&&st.thr>.75?.75:.6;let Fd=drv?(st.rev?-Math.min(Fraw,6000)*Math.max(0,Math.min(1,(20/3.6+vf)/1.5)):Fraw)*(st.on?1:0):0;
- let dCut=1,u=vf,v=vl,r=st.r,ax=st.along||0,spinR=0,slipMax=0,beta=0;const NS=4,hh=dt/NS;st.abs=0;st.tc=0;st.dsc=0;st.lock=0;
+ let dCut=1,u=vf,v=vl,r=st.r,ax=st.along||0,spinR=0,slipMax=0,beta=0;const NS=Math.max(4,Math.ceil(dt*240)),hh=dt/NS;st.abs=0;st.tc=0;st.dsc=0;st.lock=0;
  for(let k=0;k<NS;k++){
   const Fzf=MASS*GG*BB/LL-MASS*ax*HC/LL,Fzr=MASS*GG*AA/LL+MASS*ax*HC/LL,ay=Math.abs(u*r),lf=MASS*ay*HC/1.679*.56/Math.max(800,Fzf),lr=MASS*ay*HC/1.688*.44/Math.max(800,Fzr);/* lateral load transfer (active roll stab. front-biased) -> tyre load sensitivity */const Ff=mu*Math.max(800,Fzf)*(1-.2*lf*lf),Fr=mu*Math.max(800,Fzr)*(1-.2*lr*lr);
   const den=Math.max(Math.abs(u),3),sgu=u<-.1?-1:1;const af0=sgu*delta-Math.atan2(v+AA*r,den),ar0=sgu*dR-Math.atan2(v-BB*r,den);const rk=Math.abs(u)>4?1:Math.min(1,Math.max(Math.abs(u),.5)*hh/.3);st.afR=(st.afR||0)+(af0-(st.afR||0))*rk;st.arR=(st.arR||0)+(ar0-(st.arR||0))*rk;const af=st.afR,ar=st.arR;/* lateral force always opposes contact-patch lateral velocity; valid for reverse */
@@ -1484,10 +1484,10 @@ function step(dt){
   if(lockR)Br=hb&&!st.brk?Fr*.55:Fr*.7;const sg=Math.abs(u)>.15?Math.sign(u):0;Fxf-=Bf*sg;Fxr-=Br*sg;
   {const lr=Math.min(.95,Math.abs(pac(ar))),lf=Math.min(.95,Math.abs(pac(af))),limR=Fr*Math.sqrt(Math.max(.05,.94-lr*lr)),limF=Ff*Math.sqrt(Math.max(.05,.94-lf*lf));if(!lockR&&Fd*Fxr>0&&Math.abs(Fxr)>limR){const ex=Math.abs(Fxr)-limR;if(st.tcOn||st.mode<2){Fxr=Math.sign(Fxr)*limR;Fxf+=Math.sign(Fd)*ex*.85;st.tc=st.tcOn?1:0;}else{Fxf+=Math.sign(Fd)*ex*.4;Fxr-=Math.sign(Fd)*ex*.4;}}if(st.tcOn&&Fd*Fxf>0&&Math.abs(Fxf)>limF){Fxf=Math.sign(Fxf)*limF;st.tc=1;}}
   let sR=0;if(Math.abs(Fxr)>Fr*(st.brk>.05&&Fd<=0?1.45:1)){sR=Math.min(1,(Math.abs(Fxr)-Fr)/Fr+.35);Fxr=Math.sign(Fxr)*Fr*.85;}if(Math.abs(Fxf)>Ff*1.45){Fxf=Math.sign(Fxf)*Ff*1.45*.85;}
-  let Fyf=Ff*pac(af),Fyr=Fr*pacR(ar);if(lockF)Fyf*=.08;if(lockR)Fyr*=.5;
+  let Fyf=Ff*pac(af),Fyr=Fr*(st.dscOn?1.1:1.1-.22*Math.max(0,st.thr-.7)/.3)*pacR(ar);/* staggered 315 rear tyres: more rear lateral grip -> stable understeer balance at the limit */if(lockF)Fyf*=.08;if(lockR)Fyr*=.5;
   {const kxf=Fxf<0&&st.brk>.05?1.3:1.05,kxr=Fxr<0&&st.brk>.05?1.3:1.05;Fyf*=Math.max(.15,Math.sqrt(Math.max(0,1-(Fxf/(Ff*kxf))**2)));Fyr*=Math.max(.1,Math.sqrt(Math.max(0,1-(Fxr/(Fr*kxr))**2)));}if(sR)Fyr*=1-.4*sR;
   let Mz=0;beta=Math.atan2(v,Math.max(Math.abs(u),1));
-  if(st.dscOn&&u>3&&!hb){const rLim=mu*GG*.85/Math.max(Math.abs(u),3),rT=Math.max(-rLim,Math.min(rLim,u*Math.tan(delta)/LL)),er=r-rT;const bMax=st.mode==2?.26:.14;if(Math.abs(beta)>.1||Math.abs(er)>.3){st.dsc=1;Mz=-(er*7-beta*16-Math.sign(beta)*Math.max(0,Math.abs(beta)-bMax)*60)*IZ*Math.max(DS,.6);dCut=Math.max(.2,1-DS*Math.min(1,Math.max(0,Math.abs(beta)-.1)*6+Math.max(0,Math.abs(er)-.35)));}}
+  if(st.dscOn&&u>3&&!hb){const rLim=mu*GG*.85/Math.max(Math.abs(u),3),rT=Math.max(-rLim,Math.min(rLim,u*Math.tan(delta)/LL)),er=r-rT;const bMax=st.mode==2?.26:.14;if(Math.abs(beta)>.06||Math.abs(er)>.2){st.dsc=1;Mz=-(er*7-beta*16-Math.sign(beta)*Math.max(0,Math.abs(beta)-bMax)*60)*IZ*Math.max(DS,.6);dCut=Math.max(.2,1-DS*Math.min(1,Math.max(0,Math.abs(beta)-.1)*6+Math.max(0,Math.abs(er)-.35)));}}
   if(!st.dscOn&&u>5&&Math.abs(beta)>(hb?.25:.1)){const rEq=-Math.sign(beta)*mu*GG*.8/Math.max(Math.hypot(u,v),5),kk=6+25*Math.max(0,Math.abs(beta)-.4);Mz-=IZ*(r-rEq)*kk*Math.min(1,(Math.abs(beta)-.1)*6);}
   const drag=.55*u*Math.abs(u),roll=Math.abs(u)>.05?(st.road?260:1400)*Math.sign(u):0,cd=Math.cos(delta),sd=Math.sin(delta);
   const cx=lockF?1:cd,sx=lockF?0:sd;const du=(Fxf*cx-Fyf*sd+Fxr-drag-roll)/MASS+v*r,dv=(Fyf*cd+Fxf*sx+Fyr)/MASS-u*r,dr=(AA*(Fyf*cd+Fxf*sx)-BB*Fyr+Mz)/IZ;
@@ -1577,7 +1577,7 @@ function lightsUpd(){const kmh=Math.abs(st.v)*3.6;lights=HB.flash||HB.lm>=2||(HB
  hl.intensity=HB.hi?4.6:lights?2.6:0;if(typeof HLX!='undefined'){try{hl.map=HB.hi?HLX.hi:HLX.lo;}catch(e){}let wet=false;try{wet=WX.w>0;}catch(e){}HLX.cm.uniforms.uI.value=lights&&chase?(tod==2?(wet?.16:.05):tod==1?(wet?.08:.02):(wet?.03:0))*(HB.hi?1.4:1):0;HLX.cones.forEach(m=>m.visible=HLX.cm.uniforms.uI.value>0);}hl.distance=HB.hi?170:60;hl.angle=HB.hi?.42:.52;hl.penumbra=HB.hi?.35:.5;hlT.position.set(0,HB.hi?1.2:-1.5,HB.hi?45:16);
  const b=document.getElementById('bLt');if(b){b.classList.toggle('a',lights);b.textContent=['💡','A','≡D','≣D'][HB.lm];b.style.color=HB.hi?'#6af':'';}}
 
-function setMode(m){st.mode=m;st.dscOn=st.tcOn=m<2;const b=document.getElementById('bMode');b.style.color=['#8cf','#fb6','#f66'][m];}document.getElementById('bMode').onclick=()=>setMode((st.mode+1)%3);addEventListener('keydown',e=>{if(e.code=='KeyM')setMode((st.mode+1)%3);});setMode(st.mode);{const m=/mode=(\d)/.exec(Q);if(m)setMode(+m[1]);}
+window.__PHY={step,K,T,setMode:m=>setMode(m)};function setMode(m){st.mode=m;st.dscOn=st.tcOn=m<2;const b=document.getElementById('bMode');b.style.color=['#8cf','#fb6','#f66'][m];}document.getElementById('bMode').onclick=()=>setMode((st.mode+1)%3);addEventListener('keydown',e=>{if(e.code=='KeyM')setMode((st.mode+1)%3);});setMode(st.mode);{const m=/mode=(\d)/.exec(Q);if(m)setMode(+m[1]);}
 document.getElementById('bLt').onclick=()=>setLM((HB.lm+1)%4);
 document.getElementById('bTod').onclick=()=>{tod=(tod+1)%3;applyTod();};if(/night/.test(Q)){tod=2;applyTod();}
 {const b=document.getElementById('bBack');const on=e=>{e.preventDefault();lookBack=true;b.classList.add('a');},off=()=>{lookBack=false;b.classList.remove('a');};
