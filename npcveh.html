@@ -1,0 +1,26 @@
+<!doctype html><html><head><meta charset="utf-8"><title>NPC vehicles test</title><style>body{margin:0;background:#000}#i{position:fixed;left:8px;top:8px;color:#fff;font:13px monospace;background:#0008;padding:6px}</style></head><body><div id="i">loading…</div>
+<script src="https://unpkg.com/three@0.149.0/build/three.min.js"></script><script src="lib/GLTFLoader.js"></script><script src="lib/meshopt_decoder.js"></script><script src="lib/RoomEnvironment.js"></script><script src="vehicles_npc.js"></script><script>
+// ?v=uaz|paz|priora|all  &cam=x,y,z  &closed  &siren
+const q=new URLSearchParams(location.search),only=q.get('v')||'all';
+const R=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});R.setSize(1600,900);R.outputEncoding=THREE.sRGBEncoding;R.toneMapping=THREE.ACESFilmicToneMapping;R.toneMappingExposure=.75;R.shadowMap.enabled=true;document.body.appendChild(R.domElement);
+const S=new THREE.Scene();S.background=new THREE.Color(0x9fb4c8);S.environment=new THREE.PMREMGenerator(R).fromScene(new THREE.RoomEnvironment(),.04).texture;
+S.add(new THREE.HemisphereLight(0xffffff,0x556655,.35));const sun=new THREE.DirectionalLight(0xffffff,1.2);sun.position.set(8,14,6);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-15,right:15,top:15,bottom:-15});S.add(sun);
+const gr=new THREE.Mesh(new THREE.PlaneGeometry(80,80),new THREE.MeshStandardMaterial({color:0x5d6066,roughness:.95}));gr.rotation.x=-Math.PI/2;gr.receiveShadow=true;S.add(gr);
+const C=new THREE.PerspectiveCamera(45,16/9,.1,200);
+const POS={uaz:-6,paz:0.5,priora:7},PED={uaz:/^P_Character_(17|20)/,paz:/^K_Character/,priora:/^M_Character/};
+const sclone=src=>{const sm=new Map(),cm=new Map(),c=src.clone();const par=(a,b,f)=>{f(a,b);for(let i=0;i<a.children.length;i++)par(a.children[i],b.children[i],f);};par(src,c,(a,b)=>{sm.set(b,a);cm.set(a,b);});c.traverse(n=>{if(!n.isSkinnedMesh)return;const s=sm.get(n),bn=s.skeleton.bones;n.skeleton=s.skeleton.clone();n.bindMatrix.copy(s.bindMatrix);n.skeleton.bones=bn.map(b=>cm.get(b));n.bind(n.skeleton,n.bindMatrix);});return c;};
+const L=new THREE.GLTFLoader();L.setMeshoptDecoder(MeshoptDecoder);const VS=[];
+const pedsP=new Promise(r=>L.load('models/peds/peds.glb',g=>r(g.scene)));
+const kinds=only==='all'?['uaz','paz','priora']:[only];
+Promise.all([pedsP,...kinds.map(k=>VNPC.load(k))]).then(([peds,...vs])=>{let info=[];
+ vs.forEach(v=>{v.root.position.x=only==='all'?POS[v.kind]:0;S.add(v.root);v.setDoors(!q.has('closed'));v.snapDoors();VS.push(v);
+  const pool=peds.children.filter(o=>PED[v.kind].test(o.name));
+  v.exits.forEach((e,i)=>{const t=pool[i%pool.length];const c=sclone(t);c.position.set(0,0,0);const p=new THREE.Group();p.add(c);
+   const w=v.exitWorld(i);p.position.set(w.x,0,w.z);p.rotation.y=e.heading;p.traverse(n=>{if(n.isMesh){n.castShadow=true;n.frustumCulled=false;}});S.add(p);});
+  info.push(v.kind+': doors '+v.doors.length+', exits '+v.exits.length);});
+ document.getElementById('i').textContent=info.join(' | ');
+ const cm=(q.get('cam')||(only==='all'?'14,9,16':only==='paz'?'-9,4,8':'-6,3.2,6')).split(',').map(Number);C.position.set(...cm);C.lookAt(only==='all'?1:0,1,0);
+ let last=performance.now();(function f(){const n=performance.now();VS.forEach(v=>v.update((n-last)/1000,q.has('siren')));last=n;R.render(S,C);requestAnimationFrame(f);})();
+ setTimeout(()=>document.title='ready',300);
+}).catch(e=>{document.getElementById('i').textContent='ERR '+e;console.error(e);});
+</script></body></html>

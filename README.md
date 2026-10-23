@@ -11,3 +11,9 @@
 - Body bag: **"Dead body in a plastic bag"** by returnhappiness, https://sketchfab.com/3d-models/dead-body-in-a-plastic-bag-714c623018e94d9aa1cc4fdd5f3bb261 — CC BY 4.0 (models/bodybag.glb, scaled).
 - Gurney: **"PS1 Horror Hospital Gurney"** by Jan_Strydom, https://sketchfab.com/3d-models/ps1-horror-hospital-gurney-7fce61ac484343959e25208bc75c08ff — CC BY 4.0 (models/gurney.glb; wheels re-pivoted at load time to spin).
 - Paramedic voice lines: Piper TTS (ru_RU dmitri / ruslan / denis voices).
+
+### NPC vehicles (vehicles_npc.js, test page npcveh.html — not wired into traffic yet)
+- `models/npc_uaz.glb` — "UAZ Patriot" by tiunov.se, CC BY 4.0 (Sketchfab). Police (ДПС livery, lightbar added in code).
+- `models/npc_paz.glb` — "PAZ bus" by Yo.Ri (@grox777), CC BY 4.0 (Sketchfab). OMON/Rosgvardia bus, tinted windows.
+- `models/npc_priora.glb` — "Lada Priora VAZ-2170" by Okopchi, CC BY 4.0 (Sketchfab). Civilian traffic.
+Models were rescaled, re-oriented, textures resized to WebP and meshopt-compressed (`tools_npcveh.mjs`).
