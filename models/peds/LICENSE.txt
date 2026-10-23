@@ -1,0 +1,2 @@
+peds.glb: 52 rigged characters from the user's PSX character packs (Characters_psx 1.2 + Characters_Extras_01), textures downscaled to 128px, meshopt-compressed. Monsters in the pack ship unrigged and are not included.
+anims.glb: Quaternius Universal Animation Library (Standard), CC0 - Walk/Walk_Formal/Idle/Idle_Talking/Sitting_Idle/Hit_Chest/Death01/Sprint retargeted to the Mixamo rig in Blender (tools: /workspace/ped/retarget.py).

@@ -1584,63 +1584,81 @@ MIR.forEach((o,i)=>{o.c.far=i?110:90;o.c.updateProjectionMatrix();o.side=i>0;});
 
 // ---------- Group E: navigation (OSM road graph, A*, route on CID map + turn-by-turn on cluster/HUD) ----------
 
-// ===== Group F: pedestrians (footways), car impacts -> death, blood, dismemberment at speed =====
-const PED={list:[],parts:[],blood:[],kills:0};window.__PED=PED;
-{const NP=/[?&]noped/.test(Q)?0:mobile?18:42,FW=C.r.filter(r=>r.k==='footway'||r.k==='path'||r.k==='pedestrian'||r.k==='steps'),SEG=[];
+// ===== Group F: pedestrians = PSX character models (user pack) + Quaternius UAL clips retargeted in Blender; car impacts -> death, blood, dismemberment of the real mesh =====
+const PED={list:[],parts:[],blood:[],kills:0,ready:false};window.__PED=PED;
+{const NP=/[?&]noped/.test(Q)?0:mobile?16:36,FW=C.r.filter(r=>r.k==='footway'||r.k==='path'||r.k==='pedestrian'||r.k==='steps'),SEG=[];
  FW.forEach(r=>{for(let i=0;i<r.p.length-1;i++){const a=r.p[i],b=r.p[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L>1.5)SEG.push([a[0],a[1],b[0],b[1],L]);}});
- // also sidewalks: offset of residential/secondary roads
  C.r.forEach(r=>{if(r.w<5||FW.includes(r))return;for(let i=0;i<r.p.length-1;i++){const a=r.p[i],b=r.p[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<3)continue;const nx=-(b[1]-a[1])/L,nz=(b[0]-a[0])/L;for(const sd of[-1,1]){const o=(r.w/2+1.6)*sd;SEG.push([a[0]+nx*o,a[1]+nz*o,b[0]+nx*o,b[1]+nz*o,L]);}}});
  const GS={},gc=50;SEG.forEach((q,i)=>{const k=Math.floor((q[0]+q[2])/2/gc)+','+Math.floor((q[1]+q[3])/2/gc);(GS[k]=GS[k]||[]).push(i);});
  const pick=()=>{const cx=Math.floor(st.x/gc),cz=Math.floor(st.z/gc);for(let t=0;t<40;t++){const k=(cx+((Math.random()*7|0)-3))+','+(cz+((Math.random()*7|0)-3)),l=GS[k];if(!l)continue;const q=SEG[l[Math.random()*l.length|0]],u=Math.random(),x=q[0]+(q[2]-q[0])*u,z=q[1]+(q[3]-q[1])*u,d=Math.hypot(x-st.x,z-st.z);if(d>35&&d<160)return [q,u];}return null;};
- const SK=[0xe0b896,0xc69072,0x8d5a3c,0xf1cfb0],SH=[0x2c4a7a,0x7a2c2c,0x2f6a3a,0xd0c060,0x444444,0x9a5ab0,0xe07a30,0xdddddd],PA=[0x202530,0x3a3a3a,0x4a3a2a,0x1c2c4c];
- const BX=(w,h,d,y)=>new THREE.BoxGeometry(w,h,d).translate(0,y,0);
- const gHead=new THREE.SphereGeometry(.12,10,8).translate(0,.12,0),gTor=BX(.38,.56,.22,.28),gArm=BX(.1,.6,.1,-.3),gLeg=BX(.14,.84,.14,-.42),gStump=new THREE.CylinderGeometry(.06,.06,.04,6);
- const MC={},mat=c=>MC[c]||(MC[c]=new THREE.MeshLambertMaterial({color:c}));const bloodM=new THREE.MeshLambertMaterial({color:0x7a0000}),bloodD=new THREE.MeshBasicMaterial({color:0x4a0000,transparent:true,opacity:.85,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3});
- const gPool=new THREE.CircleGeometry(1,14).rotateX(-Math.PI/2),gDrop=new THREE.SphereGeometry(.035,4,3);
- const mk=()=>{const g=new THREE.Group(),sk=mat(SK[Math.random()*4|0]),sh=mat(SH[Math.random()*8|0]),pa=mat(PA[Math.random()*4|0]);
-  const P={tor:new THREE.Mesh(gTor,sh),head:new THREE.Mesh(gHead,sk),aL:new THREE.Mesh(gArm,sh),aR:new THREE.Mesh(gArm,sh),lL:new THREE.Mesh(gLeg,pa),lR:new THREE.Mesh(gLeg,pa)};
-  P.tor.position.y=.86;P.head.position.y=1.44;P.aL.position.set(-.25,1.38,0);P.aR.position.set(.25,1.38,0);P.lL.position.set(-.1,.86,0);P.lR.position.set(.1,.86,0);for(const k in P){g.add(P[k]);P[k].castShadow=true;}
-  const sc=.92+Math.random()*.16;g.scale.setScalar(sc);S.add(g);return {g,P,sc,ph:Math.random()*6,sp:1+Math.random()*.6,dead:false};};
- const place=p=>{const r=pick();if(!r){p.g.visible=false;p.q=null;return;}p.q=r[0];p.u=r[1];p.dir=Math.random()<.5?1:-1;p.side=(Math.random()-.5)*1.2;p.dead=false;p.g.visible=true;p.flee=0;for(const k in p.P){const m=p.P[k];m.visible=true;}p.g.rotation.set(0,0,0);};
- for(let i=0;i<NP;i++){const p=mk();place(p);PED.list.push(p);}
+ const bloodM=new THREE.MeshLambertMaterial({color:0x7a0000}),bloodD=new THREE.MeshBasicMaterial({color:0x4a0000,transparent:true,opacity:.85,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3});
+ const gPool=new THREE.CircleGeometry(1,14).rotateX(-Math.PI/2),gDrop=new THREE.SphereGeometry(.035,4,3),gStump=new THREE.SphereGeometry(.07,6,4);
+ // --- assets
+ const T={F:[],M:[],P:[],D:[],K:[]};let CLIPS={};
+ // minimal SkeletonUtils.clone (r149)
+ const sclone=src=>{const sm=new Map(),cm=new Map(),c=src.clone();const par=(a,b,f)=>{f(a,b);for(let i=0;i<a.children.length;i++)par(a.children[i],b.children[i],f);};par(src,c,(a,b)=>{sm.set(b,a);cm.set(a,b);});c.traverse(n=>{if(!n.isSkinnedMesh)return;const s=sm.get(n),bn=s.skeleton.bones;n.skeleton=s.skeleton.clone();n.bindMatrix.copy(s.bindMatrix);n.skeleton.bones=bn.map(b=>cm.get(b));n.bind(n.skeleton,n.bindMatrix);});return c;};
+ const PART=n=>/Head|Neck/.test(n)?0:/LeftShoulder|LeftArm|LeftForeArm|LeftHand/.test(n)?1:/RightShoulder|RightArm|RightForeArm|RightHand/.test(n)?2:/LeftUpLeg|LeftLeg|LeftFoot|LeftToe/.test(n)?3:/RightUpLeg|RightLeg|RightFoot|RightToe/.test(n)?4:5;
+ const JOINT=['Neck','LeftArm','RightArm','LeftUpLeg','RightUpLeg',null];
+ if(NP&&THREE.GLTFLoader){const ld=new THREE.GLTFLoader();if(window.MeshoptDecoder)ld.setMeshoptDecoder(MeshoptDecoder);
+  ld.load('models/peds/anims.glb',ga=>{ga.animations.forEach(a=>{// keep rotation tracks + hips position only
+    a.tracks=a.tracks.filter(t=>t.name.endsWith('.quaternion')||/Hips\.position/.test(t.name));CLIPS[a.name]=a;});
+   ld.load('models/peds/peds.glb',g=>{g.scene.children.slice().forEach(o=>{const k=(o.name||'').split('_')[0];if(!T[k])return;let sk=null;o.traverse(n=>{if(n.isSkinnedMesh)sk=n;});if(!sk)return;
+     const m=sk.material;if(m.map){m.map.magFilter=THREE.NearestFilter;m.map.minFilter=THREE.NearestMipmapLinearFilter;m.map.encoding=THREE.sRGBEncoding;}
+     sk.material=new THREE.MeshLambertMaterial({map:m.map});sk.frustumCulled=false;o.position.set(0,0,0);o.traverse(n=>{if(n.isBone)n.name=n.name.replace(/_\d+$/,'');});const w=new THREE.Group();w.add(o);w.name=o.name;
+     // per-vertex part from dominant bone
+     const sw=sk.geometry.attributes.skinWeight,si=sk.geometry.attributes.skinIndex,bp=sk.skeleton.bones.map(b=>PART(b.name)),vp=new Uint8Array(sw.count);for(let i=0;i<sw.count;i++){let bw=-1,bj=0;for(let c=0;c<4;c++){const w=sw.getComponent?sw.getComponent(i,c):[sw.getX(i),sw.getY(i),sw.getZ(i),sw.getW(i)][c];if(w>bw){bw=w;bj=[si.getX(i),si.getY(i),si.getZ(i),si.getW(i)][c];}}vp[i]=bp[bj];}
+     T[k].push({o:w,vp,name:o.name});});
+    PED.ready=true;console.log('PED models',Object.entries(T).map(([k,v])=>k+v.length).join(' '),'clips',Object.keys(CLIPS).join(','));});});}
+ const kind=()=>{const night=tod==2,r=Math.random();if(night&&r<.12&&T.K.length)return 'K';if(r<.03&&T.P.length)return 'P';if(r<.05&&T.D.length)return 'D';return Math.random()<.62?'F':'M';};
+ const mk=p=>{const k=kind(),L=T[k].length?T[k]:T.F,t=L[Math.random()*L.length|0],o=sclone(t.o);let sk=null;o.traverse(n=>{if(n.isSkinnedMesh)sk=n;});const sc=.95+Math.random()*.1;o.scale.multiplyScalar(sc);S.add(o);
+  const mx=new THREE.AnimationMixer(o),A={};for(const n in CLIPS){A[n]=mx.clipAction(CLIPS[n]);}A.Hit.setLoop(THREE.LoopOnce);A.Death.setLoop(THREE.LoopOnce);A.Death.clampWhenFinished=true;A.Hit.clampWhenFinished=true;
+  Object.assign(p,{g:o,sk,t,mx,A,sc,kind:k,cur:null,dead:false,lodf:0,st:'walk',stT:4+Math.random()*20,sp:(k==='K'?1.25:1)*(.95+Math.random()*.35)});play(p,Math.random()<.15?'Walk2':'Walk',0);p.A.Walk.time=Math.random()*1;};
+ const play=(p,n,f=.25)=>{const a=p.A[n];if(!a||p.cur===a)return;a.reset().play();if(p.cur)p.cur.crossFadeTo(a,f,false);p.cur=a;};
+ const place=p=>{const r=pick();if(!r){p.g.visible=false;p.q=null;return;}p.q=r[0];p.u=r[1];p.dir=Math.random()<.5?1:-1;p.side=(Math.random()-.5)*1.2;p.dead=false;p.g.visible=true;p.flee=0;p.st='walk';p.stT=4+Math.random()*20;play(p,'Walk',0);};
  const spray=(x,y,z,vx,vy,vz,n)=>{for(let i=0;i<n;i++){const m=new THREE.Mesh(gDrop,bloodM);m.position.set(x,y,z);S.add(m);PED.parts.push({m,v:new THREE.Vector3(vx*.5+(Math.random()-.5)*4,vy+Math.random()*3,vz*.5+(Math.random()-.5)*4),w:new THREE.Vector3(),t:0,drop:1});}};
  const pool=(x,z,r)=>{const m=new THREE.Mesh(gPool,bloodD);m.position.set(x,.03+Math.random()*.01,z);m.scale.setScalar(.05);m.userData.R=r;m.rotation.y=Math.random()*6;S.add(m);PED.blood.push(m);if(PED.blood.length>60){const o=PED.blood.shift();S.remove(o);}};
- const hit=(p,spd,fx,fz)=>{p.dead=true;PED.kills++;const wp=new THREE.Vector3(),q=new THREE.Quaternion();const sev=spd>11; // >40 km/h: dismember
-  p.g.updateMatrixWorld(true);
-  // whole body ragdoll as one piece unless severe; severe -> every part is its own projectile with stumps + blood trails
-  if(!sev){const T=p.P.tor;for(const j in p.P)if(j!=='tor')T.attach(p.P[j]);}
-  const pieces=sev?Object.keys(p.P):['tor'];const up=Math.min(9,spd*.45);
-  pieces.forEach(k=>{const m=p.P[k];m.getWorldPosition(wp);m.getWorldQuaternion(q);p.g.remove(m);S.add(m);m.position.copy(wp);m.quaternion.copy(q);m.scale.setScalar(p.sc);   const jx=(Math.random()-.5)*(sev?6:1.5),jz=(Math.random()-.5)*(sev?6:1.5);PED.parts.push({m,v:new THREE.Vector3(fx*spd*(sev?.9:.75)+jx,up*(k==='head'?1.3:1)+Math.random()*2,fz*spd*(sev?.9:.75)+jz),w:new THREE.Vector3((Math.random()-.5)*14,(Math.random()-.5)*14,(Math.random()-.5)*14),t:0,bleed:sev?2.5:1.2,lim:k});
-   if(sev&&k!=='tor'){const st2=new THREE.Mesh(gStump,bloodM);st2.position.y=k==='head'?0:k[0]==='a'?0:0;m.add(st2);}});
-  p.g.getWorldPosition(wp);spray(wp.x,1,wp.z,fx*spd,2,fz*spd,sev?40:16);pool(wp.x,wp.z,sev?1.6:1);
-  st.v*=sev?.93:.88;if(window.__XM&&__XM.shake)__XM.shake(.4);p.respawn=45;p.wx=wp.x;p.wz=wp.z;console.log('PED hit',(spd*3.6).toFixed(0),'km/h',sev?'dismembered':'killed');};
- const V=new THREE.Vector3();let acc=0;
- PED.tick=dt=>{dt=Math.min(dt,.05);const ch=Math.sin(st.h),cc=Math.cos(st.h),spd=Math.abs(st.v);
-  for(const p of PED.list){if(p.dead){p.respawn-=dt;if(p.respawn<=0&&Math.hypot(p.wx-st.x,p.wz-st.z)>60){// rebuild a fresh body
-     S.remove(p.g);for(const k in p.P){const m=p.P[k];if(m.parent)m.parent.remove(m);}PED.parts=PED.parts.filter(o=>!Object.values(p.P).includes(o.m));const n=mk();p.g=n.g;p.P=n.P;p.sc=n.sc;place(p);}continue;}
-   if(!p.q){if(Math.random()<.01)place(p);continue;}const q=p.q;let dx=q[2]-q[0],dz=q[3]-q[1];const L=q[4];
-   // flee from a fast approaching car
+ // bake the current skinned pose to world-space pieces split by body part
+ const V=new THREE.Vector3(),V2=new THREE.Vector3();
+ const dismember=p=>{const sk=p.sk;p.g.updateMatrixWorld(true);sk.skeleton.update();const P=sk.geometry.attributes.position,UV=sk.geometry.attributes.uv,ix=sk.geometry.index,n=ix?ix.count:P.count,W=new Float32Array(P.count*3);
+  for(let i=0;i<P.count;i++){V.fromBufferAttribute(P,i);sk.boneTransform(i,V);V.applyMatrix4(sk.matrixWorld);W[i*3]=V.x;W[i*3+1]=V.y;W[i*3+2]=V.z;}
+  const buck=[[],[],[],[],[],[]];for(let t=0;t<n;t+=3){const a=ix?ix.getX(t):t,b=ix?ix.getX(t+1):t+1,c=ix?ix.getX(t+2):t+2,vp=p.t.vp;const pa=vp[a]===vp[b]||vp[a]===vp[c]?vp[a]:vp[b];buck[pa].push(a,b,c);}
+  const out=[];buck.forEach((L,pi)=>{if(!L.length)return;const pos=new Float32Array(L.length*3),uv=new Float32Array(L.length*2);let cx=0,cy=0,cz=0;L.forEach((v,j)=>{pos[j*3]=W[v*3];pos[j*3+1]=W[v*3+1];pos[j*3+2]=W[v*3+2];cx+=W[v*3];cy+=W[v*3+1];cz+=W[v*3+2];if(UV){uv[j*2]=UV.getX(v);uv[j*2+1]=UV.getY(v);}});cx/=L.length;cy/=L.length;cz/=L.length;
+   for(let j=0;j<L.length;j++){pos[j*3]-=cx;pos[j*3+1]-=cy;pos[j*3+2]-=cz;}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));if(UV)g.setAttribute('uv',new THREE.BufferAttribute(uv,2));g.computeVertexNormals();
+   const m=new THREE.Mesh(g,sk.material);m.material.side=THREE.DoubleSide;m.position.set(cx,cy,cz);m.castShadow=true;S.add(m);
+   // stump at the joint
+   const jn=JOINT[pi];if(jn){const b=sk.skeleton.bones.find(b=>b.name.endsWith(jn));if(b){b.getWorldPosition(V2);const s=new THREE.Mesh(gStump,bloodM);s.position.copy(V2).sub(m.position);m.add(s);}}
+   g.computeBoundingBox();out.push({m,pi,h:g.boundingBox.max.y-g.boundingBox.min.y});});
+  S.remove(p.g);return out;};
+ const hit=(p,spd,fx,fz)=>{p.dead=true;PED.kills++;const sev=spd>11;const wp=p.g.position.clone();const up=Math.min(9,spd*.45);
+  if(sev){dismember(p).forEach(o=>{const jx=(Math.random()-.5)*6,jz=(Math.random()-.5)*6;PED.parts.push({m:o.m,v:new THREE.Vector3(fx*spd*.9+jx,up*(o.pi===0?1.3:1)+Math.random()*2,fz*spd*.9+jz),w:new THREE.Vector3((Math.random()-.5)*14,(Math.random()-.5)*14,(Math.random()-.5)*14),t:0,bleed:2.5,lim:o.pi===5?'tor':'l',fl:o.pi===5?.15:.06,own:p});});}
+  else{// whole model: Hit -> Death clip while flung
+   play(p,'Hit',.05);setTimeout(()=>{if(p.dead&&p.A)play(p,'Death',.15);},250);PED.parts.push({m:p.g,v:new THREE.Vector3(fx*spd*.75,up,fz*spd*.75),w:new THREE.Vector3(0,(Math.random()-.5)*3,0),t:0,bleed:1.2,lim:'body',fl:.12,own:p});}
+  spray(wp.x,1,wp.z,fx*spd,2,fz*spd,sev?40:16);pool(wp.x,wp.z,sev?1.6:1);
+  st.v*=sev?.93:.88;p.respawn=45;p.wx=wp.x;p.wz=wp.z;console.log('PED hit',(spd*3.6).toFixed(0),'km/h',sev?'dismembered':'killed',p.t.name);};
+ let fr=0;
+ PED.tick=dt=>{dt=Math.min(dt,.05);fr++;if(!PED.ready)return;if(!PED.list.length){for(let i=0;i<NP;i++){const p={};mk(p);place(p);PED.list.push(p);}}
+  const ch=Math.sin(st.h),cc=Math.cos(st.h),spd=Math.abs(st.v);
+  for(const p of PED.list){if(p.dead){if(p.mx&&p.g.parent)p.mx.update(dt);p.respawn-=dt;if(p.respawn<=0&&Math.hypot(p.wx-st.x,p.wz-st.z)>60){S.remove(p.g);PED.parts=PED.parts.filter(o=>{if(o.own===p){S.remove(o.m);return false;}return true;});mk(p);place(p);}continue;}
+   if(!p.q){if(Math.random()<.01)place(p);continue;}
    const rx=p.g.position.x-st.x,rz=p.g.position.z-st.z,dd=Math.hypot(rx,rz);
-   p.u+=p.dir*p.sp*dt*(p.flee>0?2.2:1)/L;if(p.u>1||p.u<0){// next segment: continue near the end point or turn back
-    const ex=p.u>1?q[2]:q[0],ez=p.u>1?q[3]:q[1];let nq=null;const l=GS[Math.floor(ex/gc)+','+Math.floor(ez/gc)];if(l)for(let t=0;t<8&&!nq;t++){const c=SEG[l[Math.random()*l.length|0]];if(c!==q){if(Math.hypot(c[0]-ex,c[1]-ez)<2){nq=c;p.u=0;p.dir=1;}else if(Math.hypot(c[2]-ex,c[3]-ez)<2){nq=c;p.u=1;p.dir=-1;}}}
-    if(nq)p.q=nq;else{p.dir*=-1;p.u=Math.max(0,Math.min(1,p.u));}}
-   const Q2=p.q;dx=Q2[2]-Q2[0];dz=Q2[3]-Q2[1];const LL=Q2[4],nx=-dz/LL,nz=dx/LL,x=Q2[0]+dx*p.u+nx*p.side,z=Q2[1]+dz*p.u+nz*p.side;
+   // behaviour: walk / stand idle / talk / sit (rare), flee runs
+   p.stT-=dt;if(p.stT<=0&&p.flee<=0){if(p.st==='walk'){const r=Math.random();p.st=r<.45?'idle':r<.85?'talk':'sit';p.stT=p.st==='sit'?12+Math.random()*20:4+Math.random()*8;play(p,p.st==='idle'?'Idle':p.st==='talk'?'Talk':'Sit',.4);}else{p.st='walk';p.stT=8+Math.random()*25;play(p,'Walk',.4);}}
+   const moving=p.st==='walk'||p.flee>0;
+   if(moving){const q=p.q;p.u+=p.dir*p.sp*dt*(p.flee>0?3:1)/q[4];if(p.u>1||p.u<0){const ex=p.u>1?q[2]:q[0],ez=p.u>1?q[3]:q[1];let nq=null;const l=GS[Math.floor(ex/gc)+','+Math.floor(ez/gc)];if(l)for(let t=0;t<8&&!nq;t++){const c=SEG[l[Math.random()*l.length|0]];if(c!==q){if(Math.hypot(c[0]-ex,c[1]-ez)<2){nq=c;p.u=0;p.dir=1;}else if(Math.hypot(c[2]-ex,c[3]-ez)<2){nq=c;p.u=1;p.dir=-1;}}}if(nq)p.q=nq;else{p.dir*=-1;p.u=Math.max(0,Math.min(1,p.u));}}}
+   const Q2=p.q,dx=Q2[2]-Q2[0],dz=Q2[3]-Q2[1],LL=Q2[4],nx=-dz/LL,nz=dx/LL,x=Q2[0]+dx*p.u+nx*p.side,z=Q2[1]+dz*p.u+nz*p.side;
    if(Math.hypot(x-st.x,z-st.z)>220){place(p);continue;}
-   p.g.position.set(x,.12,z);p.g.rotation.y=Math.atan2(dx*p.dir,dz*p.dir);p.ph+=dt*p.sp*5.5*(p.flee>0?1.8:1);const sw=Math.sin(p.ph)*.55;p.P.lL.rotation.x=sw;p.P.lR.rotation.x=-sw;p.P.aL.rotation.x=-sw*.8;p.P.aR.rotation.x=sw*.8;p.P.tor.position.y=.86+Math.abs(Math.cos(p.ph))*.03;
-   if(p.flee>0)p.flee-=dt;else if(spd>8&&dd<14&&(rx*ch+rz*cc)*Math.sign(st.v)>0&&Math.random()<dt*.8){p.flee=2;p.side+=(rx*cc-rz*ch>0?1:-1)*.6;}
-   // car footprint test (oriented box 2.1 x 5.0)
-   const lx=rx*cc-rz*ch,lz=rx*ch+rz*cc;if(Math.abs(lx)<1.25&&Math.abs(lz)<2.7){if(spd>2.2){const fx=ch*Math.sign(st.v),fz=cc*Math.sign(st.v);hit(p,spd,fx+lx*.15*cc,fz-lx*.15*ch);}else{p.dir*=-1;}}}
-  // flying parts / blood drops
-  for(let i=PED.parts.length-1;i>=0;i--){const o=PED.parts[i];o.t+=dt;if(o.rest){if(o.drop&&o.t>1){S.remove(o.m);PED.parts.splice(i,1);}continue;}o.v.y-=9.81*dt;o.m.position.addScaledVector(o.v,dt);o.m.rotation.x+=o.w.x*dt;o.m.rotation.y+=o.w.y*dt;o.m.rotation.z+=o.w.z*dt;
-   if(o.bleed>0&&!o.drop){o.bleed-=dt;if(Math.random()<dt*25)spray(o.m.position.x,o.m.position.y,o.m.position.z,o.v.x*.3,0,o.v.z*.3,1);}
-   const floor=o.drop?.02:o.lim==='tor'?.18:.07;if(o.m.position.y<floor){o.m.position.y=floor;if(o.drop){o.rest=1;o.t=0;if(Math.random()<.25)pool(o.m.position.x,o.m.position.z,.18+Math.random()*.2);continue;}
-    if(Math.abs(o.v.y)>1.5){o.v.y*=-.25;o.v.x*=.55;o.v.z*=.55;o.w.multiplyScalar(.5);if(Math.random()<.7)pool(o.m.position.x,o.m.position.z,.35+Math.random()*.4);}else{o.v.set(0,0,0);o.w.set(0,0,0);o.rest=1;
-     // lie flat
-     o.m.rotation.x=Math.PI/2*(Math.random()<.5?1:-1);o.m.position.y=o.lim==='tor'?.12:.06;pool(o.m.position.x,o.m.position.z,o.lim==='tor'?1.4:.5);}}}
-  // pools grow then stop
+   p.g.position.set(x,.12,z);if(moving)p.g.rotation.y=Math.atan2(dx*p.dir,dz*p.dir);else if(p.st==='talk')p.g.rotation.y+=0;
+   // LOD: hide > 130 m, animate every 4th frame > 45 m, shadows < 30 m
+   const vis=dd<130;p.g.visible=vis;if(vis&&(dd<45||(fr+p.sp*100|0)%4==0))p.mx.update(dd<45?dt:dt*4);p.sk.castShadow=dd<30;
+   if(p.flee>0){p.flee-=dt;if(p.flee<=0){play(p,'Walk',.3);p.st='walk';}}else if(spd>8&&dd<16&&(rx*ch+rz*cc)*Math.sign(st.v)>0&&Math.random()<dt*1.2){p.flee=2.5;p.st='walk';p.side+=(rx*cc-rz*ch>0?1:-1)*.8;play(p,'Run',.15);}
+   const lx=rx*cc-rz*ch,lz=rx*ch+rz*cc;if(Math.abs(lx)<1.15&&Math.abs(lz)<2.6){if(spd>2.2){const fx=ch*Math.sign(st.v),fz=cc*Math.sign(st.v);hit(p,spd,fx+lx*.15*cc,fz-lx*.15*ch);}else if(moving)p.dir*=-1;}}
+  for(let i=PED.parts.length-1;i>=0;i--){const o=PED.parts[i];o.t+=dt;if(o.rest){if(o.drop&&o.t>1){S.remove(o.m);PED.parts.splice(i,1);}continue;}o.v.y-=9.81*dt;o.m.position.addScaledVector(o.v,dt);
+   if(o.lim!=='body'){o.m.rotation.x+=o.w.x*dt;o.m.rotation.y+=o.w.y*dt;o.m.rotation.z+=o.w.z*dt;}else o.m.rotation.y+=o.w.y*dt;
+   if(o.bleed>0&&!o.drop){o.bleed-=dt;if(Math.random()<dt*25)spray(o.m.position.x,o.m.position.y+(o.lim==='body'?.9:0),o.m.position.z,o.v.x*.3,0,o.v.z*.3,1);}
+   const floor=o.drop?.02:o.fl;if(o.m.position.y<floor){o.m.position.y=floor;if(o.drop){o.rest=1;o.t=0;if(Math.random()<.25)pool(o.m.position.x,o.m.position.z,.18+Math.random()*.2);continue;}
+    if(Math.abs(o.v.y)>1.5){o.v.y*=-.25;o.v.x*=.55;o.v.z*=.55;o.w.multiplyScalar(.5);if(Math.random()<.7)pool(o.m.position.x,o.m.position.z,.35+Math.random()*.4);}else{o.v.set(0,0,0);o.w.set(0,0,0);o.rest=1;if(o.lim==='body')o.m.position.y=.12;pool(o.m.position.x,o.m.position.z,o.lim==='l'?.5:1.4);}}}
   PED.blood.forEach(m=>{const R=m.userData.R;if(m.scale.x<R)m.scale.setScalar(Math.min(R,m.scale.x+dt*R*.6));});
-  // keep total parts bounded
-  if(PED.parts.length>500){const o=PED.parts.shift();S.remove(o.m);}};
+  if(PED.parts.length>500){const o=PED.parts.shift();if(o.drop)S.remove(o.m);}};
 }
 const NAV={on:false,route:null,dest:null,name:'',t:0,next:null};window.__NAV=NAV;window.__ST=st;{
  const K=(x,z)=>Math.round(x*2)+','+Math.round(z*2),N=new Map(),P=[];const node=(x,z)=>{const k=K(x,z);let i=N.get(k);if(i===undefined){i=P.length;N.set(k,i);P.push([x,z,[]]);}return i;};
