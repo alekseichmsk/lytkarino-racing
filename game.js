@@ -493,22 +493,40 @@ IMP.dc=()=>Object.values(IMP.cells).filter(c=>c.m&&c.m.visible).length;
 // ---------- GRASS: instanced curved blades around the camera (wrap-around field), wind, per-blade colour, distance fade; weeds at road/fence edges ----------
 const GRASS={};window.__GRASS=GRASS;{
  const PG={low:[5000,9],medium:[16000,14],high:[40000,22],ultra:[90000,30]};let [N,RG]=PG[GSET.preset]||PG.medium;if(mobile)N=N*.5|0;if(/nograss/.test(Q))N=0;GRASS.N=N;GRASS.R=RG;
- if(N){const seg=4,pos=[],idx=[];for(let i=0;i<=seg;i++){const y=i/seg,w=.05*(1-y*.85);pos.push(-w,y,0,w,y,0);if(i<seg){const a=i*2;idx.push(a,a+1,a+2,a+1,a+3,a+2);}}
-  const g=new THREE.InstancedBufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(new Array(pos.length).fill(0).map((_,i)=>i%3==1?1:0),3));g.setIndex(idx);
+ if(N){const seg=4,pos=[],idx=[],uvs=[];for(let i=0;i<=seg;i++){const y=i/seg,w=.06;pos.push(-w,y,0,w,y,0);uvs.push(0,y,1,y);if(i<seg){const a=i*2;idx.push(a,a+1,a+2,a+1,a+3,a+2);}}
+  const g=new THREE.InstancedBufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(new Array(pos.length).fill(0).map((_,i)=>i%3==1?1:0),3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));g.setIndex(idx);
   const off=new Float32Array(N*4);for(let i=0;i<N;i++){off[i*4]=(Math.random()*2-1)*RG;off[i*4+1]=(Math.random()*2-1)*RG;off[i*4+2]=Math.random();off[i*4+3]=Math.random()*6.283;}
   g.setAttribute('aOff',new THREE.InstancedBufferAttribute(off,4));g.instanceCount=N;
   const MS=128,MC=.5;const md=new Uint8Array(MS*MS*4);const mt=new THREE.DataTexture(md,MS,MS);mt.magFilter=mt.minFilter=THREE.LinearFilter;mt.needsUpdate=true;
   const U={uWT:WIND,uCam:{value:new THREE.Vector2()},uR:{value:RG},uMask:{value:mt},uMO:{value:new THREE.Vector2()},uMS:{value:MS*MC},uCP:{value:new THREE.Vector4(0,0,1,0)}};GRASS.U=U;
-  const mat=new THREE.MeshLambertMaterial({color:0xffffff,side:THREE.DoubleSide});
+  // Poly Haven CC0 grass_medium_02 blade atlas (diffuse+alpha packed WebP); each instance picks one blade strip
+  const bt=new THREE.TextureLoader().load('tex/gnd/blades_'+(GSET.preset==='low'||mobile?512:1024)+'.webp');bt.encoding=THREE.sRGBEncoding;bt.anisotropy=Math.min(4,R.capabilities.getMaxAnisotropy());
+  const mat=new THREE.MeshLambertMaterial({color:0xffffff,side:THREE.DoubleSide,map:bt,alphaTest:.45});GRASS.mat=mat;
   mat.onBeforeCompile=sh=>{Object.assign(sh.uniforms,U);sh.vertexShader=`uniform float uWT,uR,uMS;uniform vec4 uCP;uniform vec2 uCam,uMO;uniform sampler2D uMask;attribute vec4 aOff;varying vec3 vGC;\n`+sh.vertexShader.replace('#include <begin_vertex>',`
    vec2 wp=uCam+mod(aOff.xy-uCam+uR,2.*uR)-uR;vec4 mk=texture2D(uMask,(wp-uMO)/uMS);float d=length(wp-uCam)/uR;
    float h=(.22+aOff.z*.3)*mk.r*(1.+mk.g*1.3)*smoothstep(1.,.6,d);{vec2 q=wp-uCP.xy;vec2 l=vec2(q.x*uCP.z-q.y*uCP.w,q.x*uCP.w+q.y*uCP.z);h*=1.-(1.-smoothstep(1.05,1.35,abs(l.x)))*(1.-smoothstep(2.45,2.8,abs(l.y)));}float y=position.y;
    float ca=cos(aOff.w),sa=sin(aOff.w);float ph=uWT*1.8+wp.x*.25+wp.y*.19;float bend=(.25+aOff.z*.35+sin(ph)*.25+mk.g*.2)*y*y;
-   vec3 transformed=vec3(position.x*ca*(1.+mk.g),y*h,position.x*sa*(1.+mk.g));transformed.xz+=vec2(ca,sa).yx*vec2(-1.,1.)*bend*h+vec2(sin(ph),cos(ph*.8))*.12*y*y*h;
+   #ifdef CLUMP
+   h=mk.r*(.28+aOff.z*.25)*smoothstep(1.,.6,d);
+   #endif
+   vec3 transformed=vec3((position.x*ca-position.z*sa)*(1.+mk.g),y*h,(position.x*sa+position.z*ca)*(1.+mk.g));transformed.xz+=vec2(ca,sa).yx*vec2(-1.,1.)*bend*h+vec2(sin(ph),cos(ph*.8))*.12*y*y*h;
    transformed.xz+=wp;
-   vGC=mix(vec3(.20,.30,.09),vec3(.42,.56,.18),aOff.z)*mix(.4,1.,y);vGC=mix(vGC,vec3(.40,.42,.18),mk.g*.4*aOff.z);`).replace('#include <project_vertex>','vec4 mvPosition=viewMatrix*vec4(transformed,1.);gl_Position=projectionMatrix*mvPosition;');
+   {vec4 B[7];B[0]=vec4(.03,.04,.09,.97);B[1]=vec4(.15,.03,.25,.82);B[2]=vec4(.36,.27,.42,.77);B[3]=vec4(.66,.11,.71,.83);B[4]=vec4(.90,.01,.98,.97);B[5]=vec4(.45,.24,.53,.94);B[6]=vec4(.80,.38,.86,.74);int bi=int(fract(aOff.w*7.31)*(aOff.z>.93?7.:5.));vec4 b=B[0];for(int k=1;k<7;k++)if(k==bi)b=B[k];
+   #ifdef CLUMP
+   {vec4 C[9];C[0]=vec4(.04,.69,.31,.97);C[1]=vec4(.34,.69,.48,.97);C[2]=vec4(.52,.76,.67,.97);C[3]=vec4(.68,.76,.96,.90);C[4]=vec4(.04,.45,.20,.60);C[5]=vec4(.27,.45,.46,.60);C[6]=vec4(.53,.45,.70,.65);C[7]=vec4(.77,.45,.92,.68);C[8]=vec4(.70,.01,.87,.34);int ci=int(fract(aOff.w*5.17)*9.);b=C[0];for(int k=1;k<9;k++)if(k==ci)b=C[k];}
+   #endif
+   vUv=mix(b.xy,b.zw,uv);}
+   vGC=mix(vec3(.75,.85,.7),vec3(1.1,1.1,1.),aOff.z)*mix(.55,1.,y);vGC=mix(vGC,vec3(.40,.42,.18),mk.g*.4*aOff.z);`).replace('#include <project_vertex>','vec4 mvPosition=viewMatrix*vec4(transformed,1.);gl_Position=projectionMatrix*mvPosition;');
    sh.fragmentShader='varying vec3 vGC;\n'+sh.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\n diffuseColor.rgb*=vGC;');};
   const gm=new THREE.Mesh(g,mat);gm.frustumCulled=false;gm.receiveShadow=true;S.add(gm);GRASS.m=gm;
+  // Poly Haven CC0 grass_bermuda_01 clumps: crossed-quad cards, near camera only (inner 55% of the blade radius), 1/8 of blade count; off on low
+  if(GSET.preset!=='low'&&!/noclump/.test(Q)){const cg=new THREE.InstancedBufferGeometry(),cp=[],cu=[],ci=[];for(let q=0;q<2;q++){const b=q*4,w=.35;if(q)cp.push(0,0,-w,0,0,w,0,1,-w,0,1,w);else cp.push(-w,0,0,w,0,0,-w,1,0,w,1,0);cu.push(0,0,1,0,0,1,1,1);ci.push(b,b+1,b+2,b+1,b+3,b+2);}
+   cg.setAttribute('position',new THREE.Float32BufferAttribute(cp,3));cg.setAttribute('normal',new THREE.Float32BufferAttribute([0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0],3));cg.setAttribute('uv',new THREE.Float32BufferAttribute(cu,2));cg.setIndex(ci);
+   const CN=Math.floor(N/8),co=new Float32Array(CN*4);for(let i=0;i<CN;i++){co[i*4]=(Math.random()*2-1)*RG*.55;co[i*4+1]=(Math.random()*2-1)*RG*.55;co[i*4+2]=Math.random();co[i*4+3]=Math.random()*6.283;}
+   cg.setAttribute('aOff',new THREE.InstancedBufferAttribute(co,4));cg.instanceCount=CN;
+   const ct=new THREE.TextureLoader().load('tex/gnd/clumps_'+(mobile?512:1024)+'.webp');ct.encoding=THREE.sRGBEncoding;ct.anisotropy=4;
+   const cU=Object.assign({},U,{uR:{value:RG*.55}});const cm=mat.clone();cm.map=ct;cm.defines={CLUMP:1};cm.onBeforeCompile=sh=>{mat.onBeforeCompile(sh);Object.assign(sh.uniforms,cU);};
+   const cmesh=new THREE.Mesh(cg,cm);cmesh.frustumCulled=false;cmesh.receiveShadow=true;gm.add(cmesh);GRASS.c2=cmesh;}
   // CPU mask (0.5 m cells, 64 m square around the camera): R=grass allowed, G=weeds (verge just outside the road/sidewalk margin)
   GRASS.c=[1e9,1e9];GRASS.tick=(px,pz)=>{U.uCam.value.set(px,pz);{const e=car.rotation.y;U.uCP.value.set(car.position.x,car.position.z,Math.cos(e),Math.sin(e));}if(Math.hypot(px-GRASS.c[0],pz-GRASS.c[1])<MS*MC*.5-RG-2)return;GRASS.c=[px,pz];const ox=Math.round(px-MS*MC/2),oz=Math.round(pz-MS*MC/2);U.uMO.value.set(ox,oz);
    const VG=window.__vegG;for(let j=0;j<MS;j++)for(let i=0;i<MS;i++){const x=ox+(i+.5)*MC,z=oz+(j+.5)*MC,k=(j*MS+i)*4;let a=255,w=0;
