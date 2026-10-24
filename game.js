@@ -880,7 +880,7 @@ for(let i=0;i<PN&&longR.length;i++){const o=longR[Math.floor(rnd()*longR.length)
 S.add(pb,ph,pl);
 PT('player car');// ---------- player car + BMW-style cockpit ----------
 const car=new THREE.Group();
-const RVL=[0].map(x=>{const l=new THREE.PointLight(0xfff4e6,0,14,1.6);l.position.set(0,.55,-4.4);car.add(l);l.visible=false;return l;});/* point light: spot lights break r149 cookie-map indexing (hl.map) */window.__RVL=RVL;
+const RVL=[0].map(x=>{const l=new THREE.PointLight(0xfff4e6,0,14,1.6);l.position.set(0,.55,-4.4);car.add(l);return l;});/* always visible, intensity 0 when off: toggling visibility recompiles every shader *//* point light: spot lights break r149 cookie-map indexing (hl.map) */window.__RVL=RVL;
 // reverse lamps: two wide white spot lights behind the tailgate (~18 m), always in the scene (intensity 0 when off -> no shader recompile)
 
 // GLB parts with alpha textures came in as transparent+no depth write -> things drew through the body; make them alpha-tested opaque
@@ -1035,7 +1035,7 @@ const brkP=rbox(.17,.1,.02,.01,mGloss);brkP.position.set(-.04,.18,.03);pedG.add(
 [gasP,brkP].forEach(p=>{const t=rbox(.9,.9,.1,.02,mAlu);});
 const rest=rbox(.08,.2,.02,.008,mAlu);rest.position.set(-.26,.12,.05);pedG.add(rest);
 cab.traverse(o=>{if(o.isMesh)o.castShadow=false;});
-const cabLight=new THREE.PointLight(0xfff0e0,.45,2.5);cabLight.position.set(0,1.35,-.2);cab.add(cabLight);
+const cabLight=new THREE.PointLight(0xfff0e0,.45,2.5);cabLight.position.set(0,1.35,.2);car.add(cabLight)/* on the car, not the cabin group: hiding the cabin (chase view, rear camera, wet cube map) must not change the light count = full shader recompile */;
 const ambL=new THREE.PointLight(AMB,.25,1.2);ambL.position.set(0,.8,-.45);cab.add(ambL);
 const cam=new THREE.PerspectiveCamera(innerWidth<innerHeight?95:68,innerWidth/innerHeight,.08,1500);cam.position.set(-.37,1.2,.05);cam.rotation.x=-.07;cab.add(cam);
 // ---------- exterior X5-style body (chase view) — car frame: +Z forward ----------
@@ -1227,7 +1227,7 @@ function bodyTick(dt){lightTick();gfxTick(dt);const delta=st.steer*.6/(1+Math.ab
  const iL=(st.haz||st.ind===-1)&&indOn,iR=(st.haz||st.ind===1)&&indOn;body.children.forEach(o=>{if(o.userData.side){o.material=o.userData.side>0?(iL?indOnM:indM):(iR?indOnM:indM);}});
  if(chase){const s=Math.sin(st.h),c=Math.cos(st.h);const hb2=st.h+(st.beta||0)*.6+CA,s3=Math.sin(hb2),c3=Math.cos(hb2);const tx=st.x-s3*6.2,tz=st.z-c3*6.2;if(!chP)chP=new THREE.Vector3(tx,2.4,tz);chP.lerp(_v1.set(tx,2.4,tz),Math.min(1,dt*10));chaseCam.position.copy(chP);if(COLX.shk>0&&performance.now()-(window.__t0s||(window.__t0s=performance.now()))>3000){const k=Math.min(1,COLX.shk)**2*.35,tt=performance.now()*.05;chaseCam.position.x+=Math.sin(tt*1.3)*k;chaseCam.position.y+=Math.sin(tt*1.7)*k*.6;chaseCam.position.z+=Math.cos(tt*1.1)*k;};chaseCam.position.y+=Math.max(-.3,Math.min(.3,GFX.y*3));chaseCam.lookAt(st.x+s*3,1.1-GFX.p*6,st.z+c*3);}}
 const indOnM=new THREE.MeshBasicMaterial({color:0xffa010});
-function setChase(v){chase=v;body.visible=v;cab.visible=!v;chP=null;const b=document.getElementById('bCam');if(b)b.classList.toggle('a',v);}if(/[?&]chase/.test(Q))setTimeout(()=>setChase(true),0);
+function setChase(v){chase=v;body.visible=v;cab.visible=!v;cabLight.intensity=v?0:.45;chP=null;const b=document.getElementById('bCam');if(b)b.classList.toggle('a',v);}if(/[?&]chase/.test(Q))setTimeout(()=>setChase(true),0);
 const topCam=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,Q.includes("city")?50:1,12000);
 // minimap for center screen
 const MS=0.55,mapC=cv(1800,1800,(g,w,h)=>{g.fillStyle='#16202a';g.fillRect(0,0,w,h);g.lineCap='round';
@@ -1660,6 +1660,8 @@ const PED={list:[],parts:[],blood:[],kills:0,ready:false};window.__PED=PED;
  const pick=()=>{const cx=Math.floor(st.x/gc),cz=Math.floor(st.z/gc);for(let t=0;t<40;t++){const k=(cx+((Math.random()*7|0)-3))+','+(cz+((Math.random()*7|0)-3)),l=GS[k];if(!l)continue;const q=SEG[l[Math.random()*l.length|0]],u=Math.random(),x=q[0]+(q[2]-q[0])*u,z=q[1]+(q[3]-q[1])*u,d=Math.hypot(x-st.x,z-st.z);if(d>35&&d<160)return [q,u];}return null;};
  const bloodM=new THREE.MeshLambertMaterial({color:0x7a0000}),bloodD=new THREE.MeshBasicMaterial({color:0x4a0000,transparent:true,opacity:.85,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3});
  const gPool=new THREE.CircleGeometry(1,14).rotateX(-Math.PI/2),gDrop=new THREE.SphereGeometry(.035,4,3),gStump=new THREE.SphereGeometry(.07,6,4);
+ // hidden holder of every material first used on a hit -> compiled up front by R.compile (window.__warm)
+ PED.warm=new THREE.Group();PED.warm.visible=false;S.add(PED.warm);[bloodM,bloodD].forEach(m=>PED.warm.add(new THREE.Mesh(gDrop,m)));
  // --- assets
  const T={F:[],M:[],P:[],D:[],K:[]};let CLIPS={},SRCB={};
  // per-character retarget: world-space rest-relative rotation deltas (source rig rest -> this character's rest), so differing bone rolls/rests don't twist limbs
@@ -1687,8 +1689,8 @@ const PED={list:[],parts:[],blood:[],kills:0,ready:false};window.__PED=PED;
      sk.material=new THREE.MeshLambertMaterial({map:m.map});sk.frustumCulled=false;o.position.set(0,0,0);o.traverse(n=>{if(n.isBone)n.name=n.name.replace(/_\d+$/,'');});const w=new THREE.Group();w.add(o);w.name=o.name;
      // per-vertex part from dominant bone
      const sw=sk.geometry.attributes.skinWeight,si=sk.geometry.attributes.skinIndex,bp=sk.skeleton.bones.map(b=>PART(b.name)),vp=new Uint8Array(sw.count);for(let i=0;i<sw.count;i++){let bw=-1,bj=0;for(let c=0;c<4;c++){const w=sw.getComponent?sw.getComponent(i,c):[sw.getX(i),sw.getY(i),sw.getZ(i),sw.getW(i)][c];if(w>bw){bw=w;bj=[si.getX(i),si.getY(i),si.getZ(i),si.getW(i)][c];}}vp[i]=bp[bj];}
-     const rest={},restP={};sk.skeleton.bones.forEach(b=>{rest[b.name]=b.quaternion.clone();restP[b.name]=b.position.clone();});T[k].push({o:w,vp,name:o.name,sk,rest,restP});});
-    PED.ready=true;console.log('PED models',Object.entries(T).map(([k,v])=>k+v.length).join(' '),'clips',Object.keys(CLIPS).join(','));});});}
+     const rest={},restP={};sk.skeleton.bones.forEach(b=>{rest[b.name]=b.quaternion.clone();restP[b.name]=b.position.clone();});const dsM=sk.material.clone();dsM.side=THREE.DoubleSide;PED.warm.add(new THREE.Mesh(gDrop,dsM));T[k].push({o:w,vp,name:o.name,sk,rest,restP,dsM});});
+    PED.ready=true;window.__warm&&__warm();console.log('PED models',Object.entries(T).map(([k,v])=>k+v.length).join(' '),'clips',Object.keys(CLIPS).join(','));});});}
  const kind=()=>{const night=tod==2,r=Math.random();if(night&&r<.12&&T.K.length)return 'K';if(r<.03&&T.P.length)return 'P';if(r<.05&&T.D.length)return 'D';return Math.random()<.62?'F':'M';};
  const mk=p=>{const k=kind(),L=T[k].length?T[k]:T.F,t=L[Math.random()*L.length|0],o=sclone(t.o);let sk=null;o.traverse(n=>{if(n.isSkinnedMesh)sk=n;});const sc=.95+Math.random()*.1;o.scale.multiplyScalar(sc);S.add(o);
   const mx=new THREE.AnimationMixer(o),A={},CL=retarget(t);for(const n in CL){A[n]=mx.clipAction(CL[n]);}A.Hit.setLoop(THREE.LoopOnce);A.Death.setLoop(THREE.LoopOnce);A.Death.clampWhenFinished=true;A.Hit.clampWhenFinished=true;
@@ -1704,7 +1706,7 @@ const PED={list:[],parts:[],blood:[],kills:0,ready:false};window.__PED=PED;
   const buck=[[],[],[],[],[],[]];for(let t=0;t<n;t+=3){const a=ix?ix.getX(t):t,b=ix?ix.getX(t+1):t+1,c=ix?ix.getX(t+2):t+2,vp=p.t.vp;const pa=vp[a]===vp[b]||vp[a]===vp[c]?vp[a]:vp[b];buck[pa].push(a,b,c);}
   const out=[];buck.forEach((L,pi)=>{if(!L.length)return;const pos=new Float32Array(L.length*3),uv=new Float32Array(L.length*2);let cx=0,cy=0,cz=0;L.forEach((v,j)=>{pos[j*3]=W[v*3];pos[j*3+1]=W[v*3+1];pos[j*3+2]=W[v*3+2];cx+=W[v*3];cy+=W[v*3+1];cz+=W[v*3+2];if(UV){uv[j*2]=UV.getX(v);uv[j*2+1]=UV.getY(v);}});cx/=L.length;cy/=L.length;cz/=L.length;
    for(let j=0;j<L.length;j++){pos[j*3]-=cx;pos[j*3+1]-=cy;pos[j*3+2]-=cz;}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));if(UV)g.setAttribute('uv',new THREE.BufferAttribute(uv,2));g.computeVertexNormals();
-   const m=new THREE.Mesh(g,sk.material);m.material.side=THREE.DoubleSide;m.position.set(cx,cy,cz);m.castShadow=true;S.add(m);
+   const m=new THREE.Mesh(g,p.t.dsM||sk.material);m.position.set(cx,cy,cz);m.castShadow=true;S.add(m);
    // stump at the joint
    const jn=JOINT[pi];if(jn){const b=sk.skeleton.bones.find(b=>b.name.endsWith(jn));if(b){b.getWorldPosition(V2);const s=new THREE.Mesh(gStump,bloodM);s.position.copy(V2).sub(m.position);m.add(s);}}
    g.computeBoundingBox();out.push({m,pi,h:g.boundingBox.max.y-g.boundingBox.min.y});});
@@ -1727,6 +1729,8 @@ const PED={list:[],parts:[],blood:[],kills:0,ready:false};window.__PED=PED;
   const pos=p.g.position.clone();const el=document.createElement('div');el.textContent=txt;el.style.cssText='position:absolute;transform:translate(-50%,-100%);background:rgba(255,255,255,.9);color:#111;font:600 13px sans-serif;padding:3px 8px;border-radius:10px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.4)'+(cat==='killer'?';background:rgba(30,0,0,.85);color:#f55':'');sub.appendChild(el);const S0={el,p,pos,t:2.2+txt.length*.05};SUBS.push(S0);
   const c=vctx();vbuf(f).then(b=>{if(!b||!c){VX.act--;return;}const src=c.createBufferSource();src.buffer=b;src.playbackRate.value=p.pitch||1;const pn=c.createPanner();pn.panningModel='HRTF';pn.distanceModel='inverse';pn.refDistance=3;pn.maxDistance=45;pn.rolloffFactor=1.3;
    const P=p.g.position;if(pn.positionX){pn.positionX.value=P.x;pn.positionY.value=1.6;pn.positionZ.value=P.z;}else pn.setPosition(P.x,1.6,P.z);const g=c.createGain();g.gain.value=VX.vol*(cat==='pain'?1.3:1);src.connect(g);g.connect(pn);pn.connect(c.destination);src.onended=()=>{VX.act=Math.max(0,VX.act-1);};src.start();S0.t=Math.max(S0.t,b.duration/(p.pitch||1)+.6);VX.n=(VX.n||0)+1;});return true;};
+ // pre-compile shaders of hidden/rare objects (blood, gibs, ambulance, gurney, bag, rear-camera screen) in idle time so first hit / reverse don't stall
+ window.__warm=()=>{clearTimeout(window.__warmT);window.__warmT=setTimeout(()=>{const go=()=>{try{const a=performance.now(),n=R.info.programs.length;R.compile(S,cam);if(window.__RCOV)R.initTexture(__RCOV);if(window.__RCRT&&!window.__rcWarmed){window.__rcWarmed=1;R.setRenderTarget(__RCRT);R.compile(S,cam);R.setRenderTarget(null);}/* rear-camera pass renders into a linear target = separate shader variants */window.__warmInfo={ms:Math.round(performance.now()-a),add:R.info.programs.length-n};}catch(e){console.warn('warm',e);}};window.requestIdleCallback?requestIdleCallback(go,{timeout:2000}):go();},400);};setTimeout(__warm,3000);
  PED.say=say;PED.vctx=vctx;PED.hit=hit;PED.play=play;PED.spawnChar=(k,male)=>{const p={};mk(p);const fem=n=>/Female|^F_/.test(n||'');if(k&&T[k]&&T[k].length&&(p.kind!==k||(male&&fem(p.t&&p.t.name)))){S.remove(p.g);const PL=male&&T[k].some(t=>!fem(t.name))?T[k].filter(t=>!fem(t.name)):T[k];const t=PL[Math.random()*PL.length|0];const o=sclone(t.o);let sk=null;o.traverse(n=>{if(n.isSkinnedMesh)sk=n;});S.add(o);const mx=new THREE.AnimationMixer(o),A={},CL=retarget(t);for(const n in CL)A[n]=mx.clipAction(CL[n]);Object.assign(p,{g:o,sk,t,mx,A,kind:k,cur:null});}p.play=(n,f)=>play(p,n,f);return p;};
  const vlisten=()=>{const c=vctx();if(!c||!c.listener)return;const l=c.listener,P=new THREE.Vector3(),F=new THREE.Vector3(0,0,-1);const RC=chase?chaseCam:cam;RC.getWorldPosition(P);F.applyQuaternion(RC.getWorldQuaternion(new THREE.Quaternion()));if(l.positionX){l.positionX.value=P.x;l.positionY.value=P.y;l.positionZ.value=P.z;l.forwardX.value=F.x;l.forwardY.value=F.y;l.forwardZ.value=F.z;l.upX.value=0;l.upY.value=1;l.upZ.value=0;}else{l.setPosition(P.x,P.y,P.z);l.setOrientation(F.x,F.y,F.z,0,1,0);}};
  const vsubs=dt=>{const V=new THREE.Vector3(),PL=[];for(let i=SUBS.length-1;i>=0;i--){const S0=SUBS[i];S0.t-=dt;if(S0.t<=0){S0.el.remove();SUBS.splice(i,1);continue;}const src=S0.p.dead?S0.pos:S0.p.g.position;const RC=chase?chaseCam:cam;V.set(src.x,src.y+1.95,src.z).project(RC);const vis=V.z<1&&Math.abs(V.x)<1.1&&Math.abs(V.y)<1.1&&S0.p.g.position.distanceTo(RC.getWorldPosition(new THREE.Vector3()))<40;S0.el.style.display=vis?'block':'none';let sx2=(V.x+1)/2*innerWidth,sy2=(1-V.y)/2*innerHeight;if(vis){for(const q of PL)if(Math.abs(q[0]-sx2)<160&&Math.abs(q[1]-sy2)<24)sy2=q[1]-26;PL.push([sx2,sy2]);}S0.el.style.left=sx2+'px';S0.el.style.top=sy2+'px';S0.el.style.opacity=Math.min(1,S0.t*2);}};
@@ -1882,7 +1886,7 @@ function drawHud(){const g=hudG;g.clearRect(0,0,256,128);g.fillStyle='rgba(120,2
 // rear camera (shown over centre screen in R)
 // BMW-style rear view camera: full CID takeover (cam view left 68% + top-down PDC tile right), tailgate camera on the model
 const RCW=470,RCV=688,RCH=254;const rcRT=new THREE.WebGLRenderTarget(mobile?288:416,mobile?156:224),rcCam=new THREE.PerspectiveCamera(78,RCW/RCH,.05,120);rcCam.position.set(0,1.0,-2.47);rcCam.rotation.set(-.62,0,0,'YXZ')/* tilted down so the bumper and 0..3 m of ground are in view */;car.add(rcCam);window.__RCRT=rcRT;
-const rcC=cv(RCV*2,RCH*2,()=>{}),rcCg=rcC.getContext('2d');rcCg.scale(2,2);const rcOv=new THREE.CanvasTexture(rcC);window.__RCC=rcC;rcOv.generateMipmaps=true;rcOv.minFilter=THREE.LinearMipmapLinearFilter;rcOv.anisotropy=Math.min(8,R.capabilities.getMaxAnisotropy());rcOv.encoding=THREE.sRGBEncoding;
+const rcC=cv(RCV*2,RCH*2,()=>{}),rcCg=rcC.getContext('2d');rcCg.scale(2,2);const rcOv=new THREE.CanvasTexture(rcC);window.__RCC=rcC;window.__RCOV=rcOv;let rcKey='';rcOv.generateMipmaps=true;rcOv.minFilter=THREE.LinearMipmapLinearFilter;rcOv.anisotropy=Math.min(8,R.capabilities.getMaxAnisotropy());rcOv.encoding=THREE.sRGBEncoding;
 rcG.position.set(.09,1.045,-.733);rcG.rotation.x=-.16;cab.add(rcG);
 const rcScr=new THREE.Mesh(new THREE.PlaneGeometry(.344*RCW/RCV,.127),new THREE.MeshBasicMaterial({map:rcRT.texture,toneMapped:false}));rcScr.position.x=-.172+.172*RCW/RCV;rcScr.scale.x=-1;rcScr.material.side=THREE.DoubleSide;rcG.add(rcScr);
 const rcLn=new THREE.Mesh(new THREE.PlaneGeometry(.344,.127),new THREE.MeshBasicMaterial({map:rcOv,transparent:true,toneMapped:false}));rcLn.position.z=.001;rcG.add(rcLn);rcG.visible=false;
@@ -1919,8 +1923,10 @@ let pdcT=0,indT=0,indOn=false;
 function featTick(dt){indT+=dt;if(indT>.333){indT=0;indOn=!indOn;if(st.ind||st.haz)blip(indOn?1800:1200,.03,.04);}
  if(st.ind&&Math.abs(st.steer)>.5)st.indArm=1;if(st.ind&&st.indArm&&Math.abs(st.steer)<.1)st.ind=0;
  st.pdc=9;if(st.on&&(st.sel==='R'||(st.sel==='D'&&Math.abs(st.v)<3))){st.pdc=pdcDist();if(st.pdc<2.5){pdcT-=dt;if(pdcT<=0){blip(2400,.06,.05);pdcT=st.pdc<.4?.07:.1+st.pdc*.25;}}}
- {const kmh=st.v*3.6;if(st.sel==='R'&&st.on){rcHold=8;rcWas=true;}else if(rcWas){rcHold-=dt;if(rcHold<=0||(st.sel==='D'&&Math.abs(kmh)>15)||!st.on)rcWas=false;}rcG.visible=rcWas;{const on=st.on&&(st.sel==='R'||st.rev);RVL.forEach(l=>{l.intensity+=((on?(tod==2?7:tod==1?4:1.2):0)-l.intensity)*Math.min(1,dt*12);l.visible=l.intensity>.05;});rcScr.material.color.setScalar(tod==2?2.4:tod==1?1.5:1);}if(rcWas&&fr%4==0)drawRC();}hudM.visible=!!st.hud&&st.on;if(st.hud&&fr%3==0)drawHud();}
-let rcF=0;function renderRearCam(){if(!rcG.visible||!cab.visible)return;if((rcF++)%(mobile?3:2))return;const bv=body.visible;body.visible=true;cab.visible=false;const gv=GRASS.m&&GRASS.m.visible;if(GRASS.m)GRASS.m.visible=false;R.setRenderTarget(rcRT);R.render(S,rcCam);if(GRASS.m)GRASS.m.visible=gv;R.setRenderTarget(null);body.visible=bv;cab.visible=true;}
+ {const kmh=st.v*3.6;if(st.sel==='R'&&st.on){rcHold=8;rcWas=true;}else if(rcWas){rcHold-=dt;if(rcHold<=0||(st.sel==='D'&&Math.abs(kmh)>15)||!st.on)rcWas=false;}rcG.visible=rcWas;{const on=st.on&&(st.sel==='R'||st.rev);RVL.forEach(l=>{l.intensity+=((on?(tod==2?7:tod==1?4:1.2):0)-l.intensity)*Math.min(1,dt*12);if(l.intensity<.02)l.intensity=0;});rcScr.material.color.setScalar(tod==2?2.4:tod==1?1.5:1);}if(rcWas&&fr%4==0){const k=Math.round((RCS!==null?+RCS:st.steer)*150)+'|'+Math.round(Math.min(st.pdc,3)*50);if(k!==rcKey){rcKey=k;drawRC();}}}hudM.visible=!!st.hud&&st.on;if(st.hud&&fr%3==0)drawHud();}
+let rcF=0;function renderRearCam(){if(!rcG.visible||!cab.visible)return;if((rcF++)%(mobile?3:2))return;const bv=body.visible;body.visible=true;const rh=rcHideList().filter(o=>o.visible);rh.forEach(o=>o.visible=false);const gv=GRASS.m&&GRASS.m.visible;if(GRASS.m)GRASS.m.visible=false;R.setRenderTarget(rcRT);R.render(S,rcCam);if(GRASS.m)GRASS.m.visible=gv;R.setRenderTarget(null);body.visible=bv;rh.forEach(o=>o.visible=true);}
+// hide the cabin's meshes for the rear-camera pass but keep its lights visible: a different light count in that pass compiled a second set of shaders on the first shift into R
+let rcHL=null,rcHN=-1;function rcHideList(){let n=0;cab.traverse(()=>n++);if(rcHL&&n===rcHN)return rcHL;rcHN=n;rcHL=[];const hasL=o=>{let f=false;o.traverse(x=>{if(x.isLight)f=true;});return f;};const walk=o=>o.children.forEach(c=>{if(c.isLight)return;if(hasL(c))walk(c);else rcHL.push(c);});walk(cab);return rcHL;}
 // small popup menu
 {const ui=document.getElementById('ui');const mk=(id,t,ti)=>{const b=document.createElement('b');b.id=id;if(t.length>2)b.innerHTML=t;else b.textContent=t;b.title=ti;return b;};
  const pw=mk('bPow',ICO('pow'),'Start/Stop (Enter)');ui.insertBefore(pw,ui.firstChild);const mn=mk('bMenu','≡','Функции BMW');ui.insertBefore(mn,pw.nextSibling);
@@ -2175,7 +2181,7 @@ const AMB={q:[],st:'idle',t:0};window.__AMB=AMB;
   [[.88,1.55],[-.88,1.55],[.88,-1.65],[-.88,-1.65]].forEach(([x,z])=>{const w=new THREE.Mesh(new THREE.CylinderGeometry(.36,.36,.26,12).rotateZ(Math.PI/2),km);w.position.set(x,.36,z);body.add(w);});}
  const L1=new THREE.MeshBasicMaterial({color:0x2050ff}),L2=new THREE.MeshBasicMaterial({color:0xff2020}),LO=new THREE.MeshBasicMaterial({color:0x223344});
  const lb1=new THREE.Mesh(new THREE.BoxGeometry(.55,.16,.3),LO),lb2=lb1.clone();lb1.position.set(.42,2.5,1.0);lb2.position.set(-.42,2.5,1.0);G.add(lb1,lb2);
- const PL=mobile?null:new THREE.PointLight(0x3060ff,0,22,1.5);if(PL){PL.position.set(0,2.8,.5);G.add(PL);}
+ const PL=mobile?null:new THREE.PointLight(0x3060ff,0,22,1.5);if(PL){PL.position.set(0,-50,0);S.add(PL);}/* in scene root so hiding the ambulance doesn't change the light count (=full shader recompile) */
  // GAZ-3221 model (Yo.Ri @grox777, CC BY 4.0). Doors are baked into the body mesh, so they are cut out at load time:
  // side/rear-facing triangles are clipped (Sutherland-Hodgman) against door outlines, moved onto hinge pivots, and the hole is capped dark.
  const splitDoors=(geo,mat)=>{const P=geo.attributes.position,Nn=geo.attributes.normal,U=geo.attributes.uv;const V8=i=>[P.getX(i),P.getY(i),P.getZ(i),Nn?Nn.getX(i):0,Nn?Nn.getY(i):0,Nn?Nn.getZ(i):0,U?U.getX(i):0,U?U.getY(i):0];
@@ -2208,10 +2214,10 @@ const AMB={q:[],st:'idle',t:0};window.__AMB=AMB;
    else{const mm=new THREE.Mesh(gi,mat);mm.castShadow=!mobile;N.add(mm);}});
   body.clear();body.add(N);
   // roof lightbar overlay (flashers), headlights, taillights
-  lb1.geometry=lb2.geometry=new THREE.BoxGeometry(.5,.13,.44);lb1.position.set(.27,2.47,.48);lb2.position.set(-.27,2.47,.48);if(PL)PL.position.set(0,2.7,.48);
+  lb1.geometry=lb2.geometry=new THREE.BoxGeometry(.5,.13,.44);lb1.position.set(.27,2.47,.48);lb2.position.set(-.27,2.47,.48);if(PL)PL.userData.y=2.7;
   const hm=new THREE.MeshBasicMaterial({color:0xfff4d8}),tm=new THREE.MeshBasicMaterial({color:0xff1a10});
   [1,-1].forEach(sd=>{const h=new THREE.Mesh(new THREE.PlaneGeometry(.3,.13),hm);h.position.set(sd*.51,.9,2.75);body.add(h);const t=new THREE.Mesh(new THREE.BoxGeometry(.05,.4,.1),tm);t.position.set(sd*.88,1.15,-2.68);body.add(t);});
-  console.log('ambulance model loaded, doors',DOORS.length);},undefined,()=>{});}
+  window.__warm&&__warm();console.log('ambulance model loaded, doors',DOORS.length);},undefined,()=>{});}
  // siren (WebAudio, positional)
  let SR=null;const sirenOn=()=>{if(SR)return;const c=PED.vctx&&PED.vctx();if(!c)return;const o=c.createOscillator(),o2=c.createOscillator(),g=c.createGain(),f=c.createBiquadFilter(),pn=c.createPanner();o.type='triangle';o2.type='square';o2.detune.value=8;f.type='bandpass';f.frequency.value=1100;f.Q.value=.7;g.gain.value=.0;pn.panningModel='equalpower';pn.distanceModel='inverse';pn.refDistance=10;pn.rolloffFactor=1.1;o.connect(f);o2.connect(f);f.connect(g);g.connect(pn);pn.connect(c.destination);o.start();o2.start();SR={o,o2,g,pn,c};};
  const sirenOff=()=>{if(!SR)return;try{SR.o.stop();SR.o2.stop();}catch(e){}SR=null;};
@@ -2238,9 +2244,9 @@ const gur=new THREE.Group();gur.visible=false;S.add(gur);const GW=[];{const ph=n
 if(THREE.GLTFLoader){const ld=new THREE.GLTFLoader();
  ld.load('models/bodybag.glb',g=>{const m0=g.scene,m=new THREE.Group();m.add(m0);m0.updateMatrixWorld(true);{// normalise: length 1.8 m along Z, centred, >=0.3 m tall
  let b=new THREE.Box3().setFromObject(m0),sz=b.getSize(new THREE.Vector3());if(sz.x>sz.z)m0.rotation.y=Math.PI/2;m0.updateMatrixWorld(true);b=new THREE.Box3().setFromObject(m0);sz=b.getSize(new THREE.Vector3());
- const k=1.8/sz.z;m0.scale.multiplyScalar(k);m0.updateMatrixWorld(true);b=new THREE.Box3().setFromObject(m0);sz=b.getSize(new THREE.Vector3());if(sz.y<.3){m.scale.y=.3/sz.y;}const c=b.getCenter(new THREE.Vector3());m0.position.sub(c);window.__BAGSZ=[sz.x,sz.y*m.scale.y,sz.z];}m.traverse(o=>{if(o.isMesh){o.castShadow=!mobile;if(o.material.map)o.material.map.magFilter=THREE.NearestFilter;}});bag.remove(bag.ph);bag.add(m);},undefined,()=>{});
+ const k=1.8/sz.z;m0.scale.multiplyScalar(k);m0.updateMatrixWorld(true);b=new THREE.Box3().setFromObject(m0);sz=b.getSize(new THREE.Vector3());if(sz.y<.3){m.scale.y=.3/sz.y;}const c=b.getCenter(new THREE.Vector3());m0.position.sub(c);window.__BAGSZ=[sz.x,sz.y*m.scale.y,sz.z];}m.traverse(o=>{if(o.isMesh){o.castShadow=!mobile;if(o.material.map)o.material.map.magFilter=THREE.NearestFilter;}});bag.remove(bag.ph);bag.add(m);window.__warm&&__warm();},undefined,()=>{});
  ld.load('models/gurney.glb',g=>{const m=g.scene;m.updateMatrixWorld(true);gur.remove(gur.ph);m.traverse(o=>{if(!o.isMesh)return;const geo=o.geometry.clone().applyMatrix4(o.matrixWorld);const mm=new THREE.Mesh(geo,o.material);mm.castShadow=!mobile;
-   if(/Wheel_Rubber|Outer_Wheel|Wheel Rubber|Outer Wheel/.test(o.name)){geo.computeBoundingBox();const c=geo.boundingBox.getCenter(new THREE.Vector3());geo.translate(-c.x,-c.y,-c.z);const pv=new THREE.Group();pv.position.copy(c);pv.add(mm);gur.add(pv);GW.push(pv);}else gur.add(mm);});},undefined,()=>{});}
+   if(/Wheel_Rubber|Outer_Wheel|Wheel Rubber|Outer Wheel/.test(o.name)){geo.computeBoundingBox();const c=geo.boundingBox.getCenter(new THREE.Vector3());geo.translate(-c.x,-c.y,-c.z);const pv=new THREE.Group();pv.position.copy(c);pv.add(mm);gur.add(pv);GW.push(pv);}else gur.add(mm);});window.__warm&&__warm();},undefined,()=>{});}
 const GH=.97;// gurney mattress top
 const rollG=(d)=>{GW.forEach(w=>w.rotation.x+=d/.15);};
 const moveObj=(O,x,z,y)=>{const d=Math.hypot(x-O.position.x,z-O.position.z);if(O===gur)rollG(d);O.position.set(x,y===undefined?O.position.y:y,z);};
@@ -2322,8 +2328,8 @@ AMB.tick=dt=>{dt=Math.min(dt,.05)*FAST;tt+=dt;
   if(AMB.st==='to'){if(drive(dt,13,13)){AMB.st='park';AMB.t=0;console.log('AMB arrived');}}
   else if(AMB.st==='park'||AMB.st==='medic'){V.v=0;AMB.t+=dt;stepMedics(dt);}
   else if(AMB.st==='away'){const fin=drive(dt,13);if(fin||Math.hypot(V.x-st.x,V.z-st.z)>260)AMB.st='gone';}
-  if(AMB.st==='gone'){G.visible=false;sirenOff();route=null;AMB.st='idle';AMB.done=(AMB.done||0)+1;console.log('AMB despawned');return;}
-  DOORS.forEach(d=>{d.a+=Math.sign(d.tg-d.a)*Math.min(Math.abs(d.tg-d.a),dt*2.2);d.rotation.y=d.a;});G.position.set(V.x,0,V.z);G.rotation.y=V.h;collide();};
+  if(AMB.st==='gone'){G.visible=false;if(PL){PL.intensity=0;PL.position.set(0,-50,0);}sirenOff();route=null;AMB.st='idle';AMB.done=(AMB.done||0)+1;console.log('AMB despawned');return;}
+  DOORS.forEach(d=>{d.a+=Math.sign(d.tg-d.a)*Math.min(Math.abs(d.tg-d.a),dt*2.2);d.rotation.y=d.a;});G.position.set(V.x,0,V.z);G.rotation.y=V.h;if(PL){PL.position.set(0,PL.userData.y||2.8,.5);G.localToWorld(PL.position);}collide();};
 }}
 fit();
 // shared handles for player.js (on-foot mode, driver IK)
