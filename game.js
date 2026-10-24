@@ -511,30 +511,54 @@ IMP.dc=()=>Object.values(IMP.cells).filter(c=>c.m&&c.m.visible).length;
 // ---------- GRASS: instanced curved blades around the camera (wrap-around field), wind, per-blade colour, distance fade; weeds at road/fence edges ----------
 const GRASS={};window.__GRASS=GRASS;{
  const PG={low:[5000,9],medium:[16000,14],high:[40000,22],ultra:[90000,30]};let [N,RG]=PG[GSET.preset]||PG.medium;if(mobile)N=N*.5|0;if(/nograss/.test(Q))N=0;GRASS.N=N;GRASS.R=RG;
- if(N){const seg=4,pos=[],idx=[],uvs=[];for(let i=0;i<=seg;i++){const y=i/seg,w=.06;pos.push(-w,y,0,w,y,0);uvs.push(0,y,1,y);if(i<seg){const a=i*2;idx.push(a,a+1,a+2,a+1,a+3,a+2);}}
+ if(N){const OLDB=/oldblade/.test(Q),pos=[],idx=[],uvs=[];if(OLDB){const seg=4;for(let i=0;i<=seg;i++){const y=i/seg,w=.06;pos.push(-w,y,0,w,y,0);uvs.push(0,y,1,y);if(i<seg){const a=i*2;idx.push(a,a+1,a+2,a+1,a+3,a+2);}}}else{/* user's grass_medium_02: crossed cards with Blender renders of the real clumps (2 rows so wind bends the top) */for(let q=0;q<2;q++)for(let i=0;i<=2;i++){const y=i/2,w=.5,b=q*6;if(q)pos.push(0,y,-w,0,y,w);else pos.push(-w,y,0,w,y,0);uvs.push(0,y,1,y);if(i<2){const a=b+i*2;idx.push(a,a+1,a+2,a+1,a+3,a+2);}}}
   const g=new THREE.InstancedBufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(new Array(pos.length).fill(0).map((_,i)=>i%3==1?1:0),3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));g.setIndex(idx);
   const off=new Float32Array(N*4);for(let i=0;i<N;i++){off[i*4]=(Math.random()*2-1)*RG;off[i*4+1]=(Math.random()*2-1)*RG;off[i*4+2]=Math.random();off[i*4+3]=Math.random()*6.283;}
   g.setAttribute('aOff',new THREE.InstancedBufferAttribute(off,4));g.instanceCount=N;
   const MS=128,MC=.5;const md=new Uint8Array(MS*MS*4);const mt=new THREE.DataTexture(md,MS,MS);mt.magFilter=mt.minFilter=THREE.LinearFilter;mt.needsUpdate=true;
-  const U={uWT:WIND,uCam:{value:new THREE.Vector2()},uR:{value:RG},uMask:{value:mt},uMO:{value:new THREE.Vector2()},uMS:{value:MS*MC},uCP:{value:new THREE.Vector4(0,0,1,0)}};GRASS.U=U;
+  const U={uWT:WIND,uIn:{value:0},uCam:{value:new THREE.Vector2()},uR:{value:RG},uMask:{value:mt},uMO:{value:new THREE.Vector2()},uMS:{value:MS*MC},uCP:{value:new THREE.Vector4(0,0,1,0)}};GRASS.U=U;
   // Poly Haven CC0 grass_medium_02 blade atlas (diffuse+alpha packed WebP); each instance picks one blade strip
-  const bt=new THREE.TextureLoader().load('tex/gnd/blades_'+(GSET.preset==='low'||mobile?512:1024)+'.webp');bt.encoding=THREE.sRGBEncoding;bt.anisotropy=Math.min(4,R.capabilities.getMaxAnisotropy());
-  const mat=new THREE.MeshLambertMaterial({color:0xffffff,side:THREE.DoubleSide,map:bt,alphaTest:.45});GRASS.mat=mat;
-  mat.onBeforeCompile=sh=>{Object.assign(sh.uniforms,U);sh.vertexShader=`uniform float uWT,uR,uMS;uniform vec4 uCP;uniform vec2 uCam,uMO;uniform sampler2D uMask;attribute vec4 aOff;varying vec3 vGC;\n`+sh.vertexShader.replace('#include <begin_vertex>',`
+  const bt=new THREE.TextureLoader().load('tex/gnd/'+(OLDB?'blades_':'gmimp_')+(GSET.preset==='low'||mobile?512:1024)+'.webp');bt.encoding=THREE.sRGBEncoding;bt.anisotropy=Math.min(4,R.capabilities.getMaxAnisotropy());
+  const mat=new THREE.MeshLambertMaterial({color:0xffffff,side:THREE.DoubleSide,map:bt,alphaTest:OLDB?.45:.3});if(!OLDB)mat.defines={CARD:1};GRASS.mat=mat;
+  mat.onBeforeCompile=sh=>{Object.assign(sh.uniforms,U);sh.vertexShader=`uniform float uWT,uR,uMS,uIn;uniform vec4 uCP;uniform vec2 uCam,uMO;uniform sampler2D uMask;attribute vec4 aOff;varying vec3 vGC;\n`+sh.vertexShader.replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\n#if defined(MESH)||defined(CARD)\n objectNormal=vec3(0.,1.,0.);\n#endif').replace('#include <begin_vertex>',`
    vec2 wp=uCam+mod(aOff.xy-uCam+uR,2.*uR)-uR;vec4 mk=texture2D(uMask,(wp-uMO)/uMS);float d=length(wp-uCam)/uR;
    float h=(.22+aOff.z*.3)*mk.r*(1.+mk.g*1.3)*smoothstep(1.,.6,d);{vec2 q=wp-uCP.xy;vec2 l=vec2(q.x*uCP.z-q.y*uCP.w,q.x*uCP.w+q.y*uCP.z);h*=1.-(1.-smoothstep(1.05,1.35,abs(l.x)))*(1.-smoothstep(2.45,2.8,abs(l.y)));}float y=position.y;
    float ca=cos(aOff.w),sa=sin(aOff.w);float ph=uWT*1.8+wp.x*.25+wp.y*.19;float bend=(.25+aOff.z*.35+sin(ph)*.25+mk.g*.2)*y*y;
    #ifdef CLUMP
    h=mk.r*(.28+aOff.z*.25)*smoothstep(1.,.6,d);
    #endif
-   vec3 transformed=vec3((position.x*ca-position.z*sa)*(1.+mk.g),y*h,(position.x*sa+position.z*ca)*(1.+mk.g));transformed.xz+=vec2(ca,sa).yx*vec2(-1.,1.)*bend*h+vec2(sin(ph),cos(ph*.8))*.12*y*y*h;
+   #ifdef CARD
+   h=mk.r*(.3+aOff.z*.3)*(1.+mk.g*.6)*smoothstep(1.,.6,d)*mix(1.,smoothstep(.3,.42,d),uIn);
+   #endif
+   #ifdef MESH
+   h=mk.r*(.85+aOff.z*.5)*(1.+mk.g*.4)*smoothstep(1.,.75,d);bend=0.;
+   #endif
+   #ifdef MESH
+   vec3 transformed=vec3(position.x*ca-position.z*sa,position.y,position.x*sa+position.z*ca)*h;y=clamp(position.y*3.,0.,1.);
+   #elif defined(CARD)
+   vec3 transformed=vec3((position.x*ca-position.z*sa)*h,y*h,(position.x*sa+position.z*ca)*h);
+   #else
+   vec3 transformed=vec3((position.x*ca-position.z*sa)*(1.+mk.g),y*h,(position.x*sa+position.z*ca)*(1.+mk.g));
+   #endif
+   transformed.xz+=vec2(ca,sa).yx*vec2(-1.,1.)*bend*h+vec2(sin(ph),cos(ph*.8))*.12*y*y*h;
    transformed.xz+=wp;
    {vec4 B[7];B[0]=vec4(.03,.04,.09,.97);B[1]=vec4(.15,.03,.25,.82);B[2]=vec4(.36,.27,.42,.77);B[3]=vec4(.66,.11,.71,.83);B[4]=vec4(.90,.01,.98,.97);B[5]=vec4(.45,.24,.53,.94);B[6]=vec4(.80,.38,.86,.74);int bi=int(fract(aOff.w*7.31)*(aOff.z>.93?7.:5.));vec4 b=B[0];for(int k=1;k<7;k++)if(k==bi)b=B[k];
+   #ifdef CARD
+   b=vec4(floor(fract(aOff.w*3.71)*4.)*.25,0.,floor(fract(aOff.w*3.71)*4.)*.25+.25,1.);
+   #endif
    #ifdef CLUMP
    {vec4 C[9];C[0]=vec4(.04,.69,.31,.97);C[1]=vec4(.34,.69,.48,.97);C[2]=vec4(.52,.76,.67,.97);C[3]=vec4(.68,.76,.96,.90);C[4]=vec4(.04,.45,.20,.60);C[5]=vec4(.27,.45,.46,.60);C[6]=vec4(.53,.45,.70,.65);C[7]=vec4(.77,.45,.92,.68);C[8]=vec4(.70,.01,.87,.34);int ci=int(fract(aOff.w*5.17)*9.);b=C[0];for(int k=1;k<9;k++)if(k==ci)b=C[k];}
    #endif
-   vUv=mix(b.xy,b.zw,uv);}
-   vGC=vec3(mix(.6,1.,y));`).replace('#include <project_vertex>','vec4 mvPosition=viewMatrix*vec4(transformed,1.);gl_Position=projectionMatrix*mvPosition;');
+   #ifdef MESH
+   vUv=uv;
+   #else
+   vUv=mix(b.xy,b.zw,uv);
+   #endif
+   }
+   vGC=vec3(mix(.6,1.,y));
+   #if defined(MESH)||defined(CARD)
+   vGC=vec3(mix(.95,1.45,y))*vec3(.95,1.08,.85);
+   #endif`).replace('#include <project_vertex>','vec4 mvPosition=viewMatrix*vec4(transformed,1.);gl_Position=projectionMatrix*mvPosition;');
    sh.fragmentShader='varying vec3 vGC;\n'+sh.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\n diffuseColor.rgb*=vGC;');};
   const gm=new THREE.Mesh(g,mat);gm.frustumCulled=false;gm.receiveShadow=true;S.add(gm);GRASS.m=gm;
   // Poly Haven CC0 grass_bermuda_01 clumps: crossed-quad cards, near camera only (inner 55% of the blade radius), 1/8 of blade count; off on low
@@ -545,6 +569,14 @@ const GRASS={};window.__GRASS=GRASS;{
    const ct=new THREE.TextureLoader().load('tex/gnd/clumps_'+(mobile?512:1024)+'.webp');ct.encoding=THREE.sRGBEncoding;ct.anisotropy=4;
    const cU=Object.assign({},U,{uR:{value:RG*.55}});const cm=mat.clone();cm.map=ct;cm.defines={CLUMP:1};cm.onBeforeCompile=sh=>{mat.onBeforeCompile(sh);Object.assign(sh.uniforms,cU);};
    const cmesh=new THREE.Mesh(cg,cm);cmesh.frustumCulled=false;cmesh.receiveShadow=true;gm.add(cmesh);GRASS.c2=cmesh;}
+  // user's grass models as real geometry (Blender export of grass_medium_02 a-e + grass_bermuda_01 seedlings/medium): inner 40% radius, cards fade in beyond it
+  if(!OLDB&&!/nomeshgrass/.test(Q)&&THREE.GLTFLoader){const RM=RG*.42,KM={low:.08,medium:.1,high:.12,ultra:.16}[GSET.preset]||.1;U.uIn.value=1;
+   const ld=new THREE.GLTFLoader();const mk=(file,tex,cnt,sc)=>ld.load(file,gl=>{const gs=[];gl.scene.traverse(o=>{if(o.isMesh)gs.push(o.geometry);});const t=new THREE.TextureLoader().load(tex);t.encoding=THREE.sRGBEncoding;t.flipY=false;t.anisotropy=4;
+    const m=mat.clone();m.map=t;m.alphaTest=.4;m.defines={MESH:1};const mU=Object.assign({},U,{uR:{value:RM}});m.onBeforeCompile=sh=>{mat.onBeforeCompile(sh);Object.assign(sh.uniforms,mU);};
+    gs.forEach(g0=>{const g=new THREE.InstancedBufferGeometry();['position','normal','uv'].forEach(a=>g.setAttribute(a,g0.attributes[a]));g.setIndex(g0.index);const n=Math.max(1,cnt/gs.length|0),o=new Float32Array(n*4);
+     for(let i=0;i<n;i++){o[i*4]=(Math.random()*2-1)*RM;o[i*4+1]=(Math.random()*2-1)*RM;o[i*4+2]=Math.random()*sc;o[i*4+3]=Math.random()*6.283;}g.setAttribute('aOff',new THREE.InstancedBufferAttribute(o,4));g.instanceCount=n;
+     const me=new THREE.Mesh(g,m);me.frustumCulled=false;me.receiveShadow=true;gm.add(me);(GRASS.ms=GRASS.ms||[]).push(me);});if(window.__warm)try{R.compile(S,cam);}catch(e){}});
+   const sz=mobile?512:1024;mk('models/veg/grass_medium_02.glb','tex/gnd/gm_'+sz+'.webp',N*KM|0,1);mk('models/veg/grass_bermuda_01.glb','tex/gnd/gb_'+sz+'.webp',N*KM*1.5|0,1);}
   // CPU mask (0.5 m cells, 64 m square around the camera): R=grass allowed, G=weeds (verge just outside the road/sidewalk margin)
   GRASS.c=[1e9,1e9];GRASS.tick=(px,pz)=>{U.uCam.value.set(px,pz);{const e=car.rotation.y;U.uCP.value.set(car.position.x,car.position.z,Math.cos(e),Math.sin(e));}if(Math.hypot(px-GRASS.c[0],pz-GRASS.c[1])<MS*MC*.5-RG-2)return;GRASS.c=[px,pz];const ox=Math.round(px-MS*MC/2),oz=Math.round(pz-MS*MC/2);U.uMO.value.set(ox,oz);
    const VG=window.__vegG;for(let j=0;j<MS;j++)for(let i=0;i<MS;i++){const x=ox+(i+.5)*MC,z=oz+(j+.5)*MC,k=(j*MS+i)*4;let a=255,w=0;

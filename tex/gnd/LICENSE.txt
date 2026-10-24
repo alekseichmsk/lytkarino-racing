@@ -7,3 +7,5 @@ Grass blade/clump atlases (tex/gnd/blades_*.webp, clumps_*.webp): Poly Haven gra
 Bushes: Poly Haven wild_rooibos_bush (CC0), LOD2 meshes quantised to models/bush_rooibos.bin, texture tex/bush_rooibos_*.webp.
 
 Trees: Poly Haven island_tree_01, island_tree_02, island_tree_03, tree_small_02, fir_tree_01 (CC0, https://polyhaven.com): decimated trunks + leaf-cluster cards rendered from the real foliage (tex/bark_ph_*.jpg, tex/leaf_ph_*.webp, data/trees.bin; tools_ph_trees/). Grass tufts use the grass_bermuda_01 clump atlas.
+
+models/veg/grass_medium_02.glb, grass_bermuda_01.glb, tex/gnd/gm_*.webp, gb_*.webp, gmimp_*.webp: Poly Haven grass_medium_02 / grass_bermuda_01 (CC0), exported/rendered in Blender.
