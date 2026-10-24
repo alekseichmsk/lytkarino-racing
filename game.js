@@ -1047,6 +1047,7 @@ const WH=[];{const tire=new THREE.MeshStandardMaterial({color:0x111111,roughness
   const r=new THREE.Mesh(new THREE.CylinderGeometry(.27,.27,.29,20),rim);r.rotation.z=Math.PI/2;sp.add(r);
   for(let k=0;k<5;k++){const a=k/5*Math.PI*2,sk=new THREE.Mesh(new THREE.BoxGeometry(.3,.05,.03),rim);sk.position.set(s*.15,Math.sin(a)*.13,Math.cos(a)*.13);sk.rotation.x=-a;sk.rotation.z=0;sp.add(sk);}
   WH.push({g,sp,f});});}
+const procShow=v=>body.children.forEach(o=>o.visible=v);if(THREE.GLTFLoader&&!/nomodel/.test(Q))procShow(false);// no placeholder flash: procedural X5 only shown if the glb fails
 // ---------- Sketchfab "2024 BMW X5 xDrive40i" by ddiaz-design (CC BY-NC-SA 4.0), optimised glb; procedural body stays as fallback ----------
 const XM={ok:0,t0:performance.now(),eye:(/eye=([-\d.]+),([-\d.]+),([-\d.]+)/.exec(Q)||[0,-.394,1.32,.12]).slice(1).map(Number)};window.__XM=XM;
 if(THREE.GLTFLoader&&!/nomodel/.test(Q)){const ld=new THREE.GLTFLoader();if(window.MeshoptDecoder)ld.setMeshoptDecoder(MeshoptDecoder);
@@ -1169,7 +1170,7 @@ if(THREE.GLTFLoader&&!/nomodel/.test(Q)){const ld=new THREE.GLTFLoader();if(wind
   const w=u1-u0,ht=v1-v0,dist=ctr.distanceTo(E);o.c.fov=2*Math.atan(ht/2/dist)*57.3*fovK;o.c.aspect=w/ht;o.c.near=near;o.c.updateProjectionMatrix();o.fit={w,ht,ctr,N};return true;};
  MIR[0].aim=new THREE.Vector3(0,1.42,2.6);const ok=[fit(MIR[0],c=>Math.abs(c.x)<.13&&c.y>1.42&&c.y<1.5&&c.z<-.4&&c.z>-.53,2.6,.08),fit(MIR[1],c=>c.x<-.89&&c.y>1.12&&c.y<1.3&&c.z<-.54&&c.z>-.66,1.9,.25),fit(MIR[2],c=>c.x>.89&&c.y>1.12&&c.y<1.3&&c.z<-.54&&c.z>-.66,2.2,.25)];
  XM.mirOk=ok;cx.traverse(q=>{if(q.isMesh&&q.name=='Body_8')XM.cabWin=q;});MIR[0].modelCab=true;}cam.position.set(-.394,1.22,.15);XM.cabOk=1;if(CTON&&CT.wc)setTimeout(()=>{try{woodTrim(cx);}catch(e){console.warn('wood trim',e);}try{woodRim(cx);}catch(e){console.warn('wood rim',e);}},300);}
-  if(nw.length==4){body.children.forEach(o=>o.visible=false);WH.length=0;nw.forEach(w=>WH.push(w));body.add(xb);XM.ok=1;console.log('X5 model loaded in',(performance.now()-XM.t0).toFixed(0),'ms');}},undefined,e=>console.warn('X5 model failed, keeping procedural body',e));}
+  if(nw.length==4){body.children.forEach(o=>o.visible=false);WH.length=0;nw.forEach(w=>WH.push(w));body.add(xb);XM.ok=1;console.log('X5 model loaded in',(performance.now()-XM.t0).toFixed(0),'ms');}},undefined,e=>{console.warn('X5 model failed, keeping procedural body',e);procShow(true);});}
 // ---------- cabin look: PMREM room environment for reflections, procedural leather grain normal, window fill + night ambient lights ----------
 const CABX={};{try{if(THREE.RoomEnvironment&&!(GSET.preset==='low'||mobile)){const pm=new THREE.PMREMGenerator(R);CABX.env=pm.fromScene(new THREE.RoomEnvironment(),.04).texture;pm.dispose();}}catch(e){}
  const N=256,c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d');const id=g.createImageData(N,N);const H=new Float32Array(N*N);for(let i=0;i<N*N;i++)H[i]=Math.random();
