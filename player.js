@@ -80,7 +80,7 @@ function cutDoor(){if(DOOR.piv||!XM.root)return;body.updateMatrixWorld(true);con
  ga.scene.traverse(n=>{if(n.isBone||/mixamorig/.test(n.name))SRCB[n.name]={q:n.quaternion.clone(),p:n.position.clone(),par:n.parent&&/mixamorig/.test(n.parent.name)?n.parent.name:null};});
  const g=await ldp(ld,'models/peds/player.glb');o=g.scene.children[0];o.traverse(n=>{if(n.isSkinnedMesh)sk=n;if(n.isBone)n.name=n.name.replace(/_\d+$/,'');});
  const m=sk.material;if(m.map){m.map.magFilter=T.NearestFilter;m.map.encoding=T.sRGBEncoding;}sk.material=new T.MeshLambertMaterial({map:m.map});sk.frustumCulled=false;sk.castShadow=true;o.position.set(0,0,0);
- const rest={},restP={};sk.skeleton.bones.forEach(b=>{rest[b.name]=b.quaternion.clone();restP[b.name]=b.position.clone();B[b.name]=b;});tpl={sk,rest,restP};
+ const rest={},restP={};sk.skeleton.bones.forEach(b=>{rest[b.name]=b.quaternion.clone();restP[b.name]=b.position.clone();B[b.name]=b;});tpl={sk,rest,restP};try{o.updateMatrixWorld(true);PLY.palm={};['Left','Right'].forEach(sd=>{const h=B['mixamorig'+sd+'Hand'];if(!h)return;const q=new THREE.Quaternion();h.getWorldQuaternion(q);PLY.palm[sd]=new THREE.Vector3(0,-1,0).applyQuaternion(q.invert()).normalize();});}catch(e){}
  const root=new T.Group();root.add(o);root.name="PLAYER";PLY.root=root;mx=new T.AnimationMixer(o);const CL=retarget(tpl,CLIPS,SRCB);for(const n in CL)A[n]=mx.clipAction(CL[n]);
  ['JumpStart','JumpLand','SitExit','SitEnter','Interact','Jab','Cross','HitHead'].forEach(n=>{if(A[n]){A[n].setLoop(T.LoopOnce);A[n].clampWhenFinished=true;}});
  car.add(root);play('Drive',0);PLY.ready=true;PLY.clips=Object.keys(A);console.log('PLY ready clips',PLY.clips.join(','));}catch(e){console.error('player.js load',e);}})();
@@ -103,15 +103,25 @@ let GRIP=null;const GEAR=new T.Vector3(.03,.88,.24),gearH={t:-1};PLY.GEAR=GEAR;
 function initGrip(){const sw=XM.sw;if(!sw)return;const ctr=new T.Vector3(.394,1.101,.43),n=XM.swAx.clone().normalize();const u=new T.Vector3(0,1,0).sub(n.clone().multiplyScalar(n.y)).normalize(),r=new T.Vector3().crossVectors(u,n).normalize();
  const R=.175,pt=ang=>ctr.clone().add(u.clone().multiplyScalar(Math.cos(ang)*R)).add(r.clone().multiplyScalar(Math.sin(ang)*R));const sL=pt(1.25).x>pt(-1.25).x?1:-1;
  GRIP={ctr,n,u,r,R,pt,H:{Left:{sg:sL,o:1.25*sL,t:-1},Right:{sg:-sL,o:-1.25*sL,t:-1}}};PLY.GRIP=GRIP;}
-const LO=.05,HI=2.45,REST=1.25,TT=.26;
+const LO=.05,HI=2.45,REST=1.25,TT=.32;
 function gripPos(sd,W,dt){const G2=GRIP,h=G2.H[sd],oth=G2.H[sd==='Left'?'Right':'Left'];let a=h.sg*(h.o+W),lift=0;
- if(h.t>=0){h.t+=dt/TT;const k=Math.min(1,h.t),e=k*k*(3-2*k);h.o=h.o0+(h.o1-h.o0)*e;lift=Math.sin(Math.PI*k);a=h.sg*(h.o+W);if(k>=1)h.t=-1;}
+ if(h.t>=0){h.t+=dt/TT;const k=Math.min(1,h.t),e=k*k*(3-2*k);h.o=h.o0+(h.o1-h.o0)*e;lift=Math.pow(Math.sin(Math.PI*k),1.5);a=h.sg*(h.o+W);if(k>=1)h.t=-1;}
  else if(oth.t<0&&!(sd==='Right'&&gearH.t>=0)){let tgt=null;const vW=(W-(h.pW??W))*h.sg;
   if(a<LO)tgt=Math.min(HI-.25,a+1.6);else if(a>HI)tgt=Math.max(LO+.25,a-1.6);
   else if(Math.abs(W)<.06&&Math.abs(a-REST)>.2&&Math.abs(vW)<.01)tgt=REST;
   if(tgt!==null){h.o0=h.o;h.o1=tgt*h.sg-W;h.t=0;}}
  h.pW=W;const ang=a*h.sg,p=G2.pt(ang),rad=p.clone().sub(G2.ctr).normalize();
- p.add(rad.multiplyScalar(-.035+lift*.03)).add(G2.n.clone().multiplyScalar(.05+lift*.06)).sub(G2.u.clone().multiplyScalar(.03));return p.applyMatrix4(car.matrixWorld);}
+ const tg=G2.u.clone().multiplyScalar(-Math.sin(ang)).add(G2.r.clone().multiplyScalar(Math.cos(ang)));h.rim=p.clone().applyMatrix4(car.matrixWorld);h.rad=rad.clone().transformDirection(car.matrixWorld);h.tg=tg.transformDirection(car.matrixWorld);h.lift=lift;
+ p.add(rad.multiplyScalar(-.02+lift*.012)).add(G2.n.clone().multiplyScalar(.045+lift*.025)).sub(G2.u.clone().multiplyScalar(.015));return p.applyMatrix4(car.matrixWorld);}
+// orient the hand on the rim: wrist->knuckles continues the forearm (minus the rim-tangent part), palm turned toward the rim tube, index (mitten) chain curled round the rim
+function handGrip(sd,blend){const h=GRIP.H[sd],ha=B['mixamorig'+sd+'Hand'],lo=B['mixamorig'+sd+'ForeArm'],f1=B['mixamorig'+sd+'HandIndex1'];if(!ha||!lo||!f1||!h.rim||!PLY.palm||!PLY.palm[sd])return;
+ const hp=wp(ha,new T.Vector3()),ep=wp(lo,new T.Vector3()),fa=hp.clone().sub(ep).normalize(),tg=h.tg,nW=GRIP.n.clone().transformDirection(car.matrixWorld);
+ let fd=fa.clone().sub(tg.clone().multiplyScalar(fa.dot(tg))).add(nW.clone().multiplyScalar(.8)).sub(h.rad.clone().multiplyScalar(.3)).normalize();const cur=wp(f1,new T.Vector3()).sub(hp).normalize();fd=cur.clone().lerp(fd,blend).normalize();rotBoneWorld(ha,cur,fd);
+ const q=new T.Quaternion();ha.getWorldQuaternion(q);const pn=PLY.palm[sd].clone().applyQuaternion(q);const want=h.rim.clone().sub(hp);want.sub(fd.clone().multiplyScalar(want.dot(fd)));if(want.lengthSq()>1e-8){want.normalize();const pp=pn.sub(fd.clone().multiplyScalar(pn.dot(fd))).normalize();let an=Math.atan2(fd.dot(pp.clone().cross(want)),pp.dot(want))*blend;
+  const tq=new T.Quaternion().setFromAxisAngle(fd,an);q.premultiply(tq);const pq=new T.Quaternion();ha.parent.getWorldQuaternion(pq);ha.quaternion.copy(pq.invert().multiply(q));ha.updateMatrixWorld(true);}
+ // curl: each index segment bends toward the palm by ~55deg (less while lifted)
+ const c=(1-h.lift*.6)*blend;['Index1','Index2','Index3'].forEach((n,i)=>{const b=B['mixamorig'+sd+'Hand'+n];if(!b)return;const ax=new T.Vector3();const q2=new T.Quaternion();ha.getWorldQuaternion(q2);const pn2=PLY.palm[sd].clone().applyQuaternion(q2),fd2=wp(f1,new T.Vector3()).sub(wp(ha,new T.Vector3())).normalize();ax.crossVectors(fd2,pn2).normalize();
+  const bq=new T.Quaternion();b.getWorldQuaternion(bq);bq.premultiply(new T.Quaternion().setFromAxisAngle(ax,(i?0.95:0.75)*c*(PLY.curlS??1)));const pq=new T.Quaternion();b.parent.getWorldQuaternion(pq);b.quaternion.copy(pq.invert().multiply(bq));b.updateMatrixWorld(true);});}
 PLY.onGear=g=>{if(!PLY.foot&&PLY.ready)gearH.t=0;};
 // seated: align head to the driver eye point, then arms to the wheel
 const EYE=new T.Vector3(.394,1.32,-.12);
@@ -121,9 +131,9 @@ function seatPose(dt,showHead){armK(1.22);const root=PLY.root;if(root.parent!==c
  root.updateMatrixWorld(true);const hd=B.mixamorigHead;if(hd){const hp=car.worldToLocal(wp(hd,new T.Vector3()));o.position.set(EYE.x-hp.x,EYE.y-.07-hp.y,EYE.z+.05-hp.z);root.updateMatrixWorld(true);}
  if(GRIP===null)initGrip();if(GRIP&&XM.sw){car.updateMatrixWorld(true);const W=(PLY.dbgSteer??st.steer)*2.4;const gl=gripPos('Left',W,dt),gr=gripPos('Right',W,dt);
   const down=new T.Vector3(0,-1,0),outL=new T.Vector3(1,0,0).transformDirection(car.matrixWorld),fwd=new T.Vector3(0,0,-.3).transformDirection(car.matrixWorld).multiplyScalar(.3);
-  ik('Left',gl,down.clone().add(outL.clone().multiplyScalar(.8)).add(fwd));
+  ik('Left',gl,down.clone().add(outL.clone().multiplyScalar(.8)).add(fwd));handGrip('Left',1);
   let tr=gr;if(PLY.dbgGear)gearH.t=.3;if(gearH.t>=0){gearH.t+=dt;const k=gearH.t<.18?gearH.t/.18:gearH.t<.58?1:Math.max(0,1-(gearH.t-.58)/.18);if(gearH.t>.76)gearH.t=-1;const gp=GEAR.clone().applyMatrix4(car.matrixWorld);tr=gr.clone().lerp(gp,k*k*(3-2*k));}
-  ik('Right',tr,down.clone().sub(outL.clone().multiplyScalar(.8)).add(fwd));}
+  ik('Right',tr,down.clone().sub(outL.clone().multiplyScalar(.8)).add(fwd));handGrip('Right',gearH.t>=0?.3:1);}
  setHead(showHead);}
 const setHead=v=>{const hd=B.mixamorigNeck||B.mixamorigHead;if(hd){const s=v?1:.001;hd.scale.setScalar(s);hd.updateMatrixWorld(true);}};
 // ---------- input (on foot)
