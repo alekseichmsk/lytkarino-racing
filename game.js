@@ -1360,7 +1360,7 @@ if(mobile||Q.includes('touch')){const tc=document.getElementById('tc');tc.classL
  const ang=(t)=>{const r=sw.getBoundingClientRect();return Math.atan2(t.clientY-(r.top+r.height/2),t.clientX-(r.left+r.width/2))*180/Math.PI;};
  const find=(e,id)=>{for(const t of e.changedTouches)if(t.identifier===id)return t;return null;};
  sw.addEventListener('touchstart',e=>{e.preventDefault();audioInit();const t=e.changedTouches[0];sid=t.identifier;last=ang(t);swHeld=true;},{passive:false});
- sw.addEventListener('touchmove',e=>{e.preventDefault();const t=find(e,sid);if(!t)return;const a=ang(t);let d=a-last;if(d>180)d-=360;if(d<-180)d+=360;last=a;swAng=Math.max(-450,Math.min(450,swAng+d));},{passive:false});
+ sw.addEventListener('touchmove',e=>{e.preventDefault();const t=find(e,sid);if(!t)return;const a=ang(t);let d=a-last;if(d>180)d-=360;if(d<-180)d+=360;last=a;swAng=Math.max(-300,Math.min(300,swAng+d));},{passive:false});
  const swEnd=e=>{if(find(e,sid)){sid=null;swHeld=false;}};sw.addEventListener('touchend',swEnd);sw.addEventListener('touchcancel',swEnd);
  window.__swg=swg;
  [['gasP','gas'],['brkP','brk']].forEach(([id,k])=>{const el=document.getElementById(id),bar=el.querySelector('i');let pid=null;
@@ -1377,7 +1377,7 @@ if(mobile||Q.includes('touch')){const tc=document.getElementById('tc');tc.classL
   const le=e=>{if(find(e,lid)){lid=null;k.setAttribute('transform','');}};lv.addEventListener('touchend',le);lv.addEventListener('touchcancel',le);}
 }
 updGsel();{const m=/swa=(-?\d+)/.exec(Q);if(m){swAng=+m[1];swHeld=true;}}
-function swTick(dt){if(!swHeld)swAng*=Math.exp(-dt*5);if(Math.abs(swAng)<.3&&!swHeld)swAng=0;T.steer=swAng/450;if(window.__swg)window.__swg.setAttribute('transform','rotate('+swAng.toFixed(1)+')');}
+function swTick(dt){if(!swHeld)swAng*=Math.exp(-dt*5);if(Math.abs(swAng)<.3&&!swHeld)swAng=0;T.steer=swAng/300;/* touch wheel: full lock at 300deg (was 450, too much finger travel on phones) */if(window.__swg)window.__swg.setAttribute('transform','rotate('+swAng.toFixed(1)+')');}
 // ---------- wheel particles: dust puffs + dirt clods (sprite atlas), grass clippings, instanced low-poly gravel stones that bounce & settle, water spray in rain ----------
 // emission = speed x (1 + slip) x surface; pooled; counts scaled by preset; procedural textures
 const WPT={};window.__WPT=WPT;{const K=(mobile?.35:{low:.4,medium:.7,high:1,ultra:1.5}[GSET.preset]||.7);
@@ -1493,8 +1493,8 @@ function step(dt){if(window.__PHYHOLD&&!window.__PHYIN)return;
  if(st.autohold&&Math.abs(st.v)<.3&&brkIn>.3&&st.sel!=='P')st.held=true;if(thrIn>.1){st.held=false;if(st.sel==='D'||st.sel==='R')st.epb=false;}
  if(!st.on)thrIn=0;
  const wantT=thrIn,wantB=(st.launch==1)?1:brkIn;
- const MODE=[{thr:3,up:.85,st:3.0,dsc:1},{thr:6,up:1,st:3.5,dsc:.6},{thr:10,up:1.08,st:4.2,dsc:0}][st.mode];st.thr+=(wantT-st.thr)*Math.min(1,dt*MODE.thr*(wantT>st.thr?1/(1+Math.abs(st.steer)*1.5+Math.abs(st.beta||0)*8):1));st.brk+=(wantB-st.brk)*Math.min(1,dt*(wantB>st.brk?16:10));
- const vS0=Math.abs(st.vx*Math.sin(st.h)+st.vz*Math.cos(st.h)),sr=(Math.abs(stIn)>Math.abs(st.steer)?MODE.st*1.7:8)/(1+vS0/40);st.steer+=(stIn-st.steer)*Math.min(1,dt*sr);// slower steering slew at speed (keyboard taps can't snap full lock)
+ const LOCKT=[[0,30],[20,25],[40,18],[60,12],[90,7],[130,4.5],[200,3]],LOCKF=k=>{for(let i=1;i<LOCKT.length;i++)if(k<=LOCKT[i][0]){const a=LOCKT[i-1],b=LOCKT[i],f=(k-a[0])/(b[0]-a[0]);return (a[1]+(b[1]-a[1])*f)/57.3;}return 3/57.3;};const MODE=[{thr:3,up:.85,st:3.0,dsc:1},{thr:6,up:1,st:3.5,dsc:.6},{thr:10,up:1.08,st:4.2,dsc:0}][st.mode];st.thr+=(wantT-st.thr)*Math.min(1,dt*MODE.thr*(wantT>st.thr?1/(1+Math.abs(st.steer)*1.5+Math.abs(st.beta||0)*8):1));st.brk+=(wantB-st.brk)*Math.min(1,dt*(wantB>st.brk?16:10));
+ const vS0=Math.abs(st.vx*Math.sin(st.h)+st.vz*Math.cos(st.h)),sr=(Math.abs(stIn)>Math.abs(st.steer)?MODE.st*2.4:9)/(1+vS0/40);st.steer+=(stIn-st.steer)*Math.min(1,dt*sr);// slower steering slew at speed (keyboard taps can't snap full lock)
  st.road=DYNO?!/offrd/.test(Q)||(/mixrd/.test(Q)&&((st.x+st.z)/9|0)%2==0):onRoad(st.x,st.z);st.sf=st.road?0:(DYNO?4:GND.surf(st.x,st.z));const SF=SURF[st.sf],wet01=typeof WX!='undefined'?[0,.75,1][WX.w]||0:0,gr=SF[0]+(SF[1]-SF[0])*wet01;st.grip=gr;
  // gearbox
  const sp=Math.abs(vf);if(st.rev){st.g=0;}else{const rpmG=sp/RW*GR[st.g]*FD*9.549;const up=Math.min(6500,(1700+Math.pow(st.thr,1.5)*4700)*MODE.up),dn=Math.min(1050+Math.pow(st.thr,2)*3300,up*.55);if(rpmG>up&&st.g<7&&st.shift<=0&&!(Math.abs(st.beta||0)>.15&&rpmG<6300)){st.g++;st.shift=.15;}else if(st.g>0&&rpmG<dn&&st.shift<=0&&sp/RW*GR[st.g-1]*FD*9.549<6200){st.g--;st.shift=.12;}}
@@ -1504,7 +1504,7 @@ function step(dt){if(window.__PHYHOLD&&!window.__PHYIN)return;
  const roll=260+1140*SF[2]+.6*sp*sp*SF[3],drag=.55*vf*vf;if(SF[4]&&sp>1.5)st.bmp=Math.max(st.bmp||0,SF[4]*Math.min(1,sp/12)*(.5+Math.random()*.5));
  // ---- tire model: bicycle model, per-axle Pacejka-like curves, friction circle, xDrive split, ABS/TC/DSC ----
  const mu0=.85*gr;st.muF=st.muF===undefined?mu0:st.muF+(mu0-st.muF)*Math.min(1,dt*3);const mu=st.muF,GG=9.81,AA=1.45,BB=1.525,LL=AA+BB,HC=.62,IZ=4300,DS=Math.max(MODE.dsc,.4);
- const maxA=Math.min(.52/(1+Math.pow(Math.abs(vf)/9,1.5)),Math.atan(LL*7.4/Math.max(1,vf*vf))+.03),delta=st.steer*maxA;// speed-sensitive ratio: ~30 deg at standstill, ~16 @30, ~8 @60, ~5 @90, ~3.3 deg @130 km/h// ~30 deg mean (inner ~36) at standstill; variable-ratio sport steering
+ const maxA=LOCKF(Math.abs(vf)*3.6),delta=st.steer*maxA;st.lastDelta=maxA;/* arcade city lock: ~25deg@20, 18@40, 12@60, 7@90, 4.5@130 km/h; DSC keeps it stable */// speed-sensitive ratio: ~30 deg at standstill, ~16 @30, ~8 @60, ~5 @90, ~3.3 deg @130 km/h// ~30 deg mean (inner ~36) at standstill; variable-ratio sport steering
  const vS=Math.abs(vf),dR=(vS<16.7?-.09*(1-vS/16.7):.04*Math.min(1,(vS-16.7)/10))*delta;// Integral Active Steering: rear opposite <60 km/h, in-phase above
  const pac=x=>{const bx=12*x;return Math.sin(1.45*Math.atan(bx+.2*(bx-Math.atan(bx))));};const pacR=x=>{const bx=14.5*x;return Math.sin(1.3*Math.atan(bx+.2*(bx-Math.atan(bx))));};/* rear keeps ~89% past the peak (no snap) */// MF: peak ~9 deg, keeps ~89% of peak far past it (no grip collapse)
  const rearSplit=st.mode==2&&st.thr>.75?.75:.6;let Fd=drv?(st.rev?-Math.min(Fraw,6000)*Math.max(0,Math.min(1,(20/3.6+vf)/1.5)):Fraw)*(st.on?1:0):0;
@@ -1517,7 +1517,7 @@ function step(dt){if(window.__PHYHOLD&&!window.__PHYIN)return;
   if(lockR)Br=hb&&!st.brk?Fr*.55:Fr*.7;const sg=Math.abs(u)>.15?Math.sign(u):0;Fxf-=Bf*sg;Fxr-=Br*sg;
   {const lr=Math.min(.95,Math.abs(pac(ar))),lf=Math.min(.95,Math.abs(pac(af))),limR=Fr*Math.sqrt(Math.max(.05,.94-lr*lr)),limF=Ff*Math.sqrt(Math.max(.05,.94-lf*lf));if(!lockR&&Fd*Fxr>0&&Math.abs(Fxr)>limR){const ex=Math.abs(Fxr)-limR;if(st.tcOn||st.mode<2){Fxr=Math.sign(Fxr)*limR;Fxf+=Math.sign(Fd)*ex*.85;st.tc=st.tcOn?1:0;}else{Fxf+=Math.sign(Fd)*ex*.4;Fxr-=Math.sign(Fd)*ex*.4;}}if(st.tcOn&&Fd*Fxf>0&&Math.abs(Fxf)>limF){Fxf=Math.sign(Fxf)*limF;st.tc=1;}}
   let sR=0;if(Math.abs(Fxr)>Fr*(st.brk>.05&&Fd<=0?1.45:1)){sR=Math.min(1,(Math.abs(Fxr)-Fr)/Fr+.35);Fxr=Math.sign(Fxr)*Fr*.85;}if(Math.abs(Fxf)>Ff*1.45){Fxf=Math.sign(Fxf)*Ff*1.45*.85;}
-  let Fyf=Ff*pac(af),Fyr=Fr*(st.dscOn?1.1:1.1-.22*Math.max(0,st.thr-.7)/.3)*pacR(ar);/* staggered 315 rear tyres: more rear lateral grip -> stable understeer balance at the limit */if(lockF)Fyf*=.08;if(lockR)Fyr*=.5;
+  let Fyf=Ff*pac(af),Fyr=Fr*(st.dscOn?1.02:1.02-.22*Math.max(0,st.thr-.7)/.3)*pacR(ar);/* staggered 315 rear tyres: more rear lateral grip -> stable understeer balance at the limit */if(lockF)Fyf*=.08;if(lockR)Fyr*=.5;
   {const kxf=Fxf<0&&st.brk>.05?1.3:1.05,kxr=Fxr<0&&st.brk>.05?1.3:1.05;Fyf*=Math.max(.15,Math.sqrt(Math.max(0,1-(Fxf/(Ff*kxf))**2)));Fyr*=Math.max(.1,Math.sqrt(Math.max(0,1-(Fxr/(Fr*kxr))**2)));}if(sR)Fyr*=1-.4*sR;
   let Mz=0;beta=Math.atan2(v,Math.max(Math.abs(u),1));
   if(st.dscOn&&u>3&&!hb){const rLim=mu*GG*.85/Math.max(Math.abs(u),3),rT=Math.max(-rLim,Math.min(rLim,u*Math.tan(delta)/LL)),er=r-rT;const bMax=st.mode==2?.26:.14;if(Math.abs(beta)>.06||Math.abs(er)>.2){st.dsc=1;Mz=-(er*7-beta*16-Math.sign(beta)*Math.max(0,Math.abs(beta)-bMax)*60)*IZ*Math.max(DS,.6);dCut=Math.max(.2,1-DS*Math.min(1,Math.max(0,Math.abs(beta)-.1)*6+Math.max(0,Math.abs(er)-.35)));}}
