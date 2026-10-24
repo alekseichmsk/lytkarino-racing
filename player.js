@@ -117,7 +117,8 @@ PLY.onGear=g=>{if(!PLY.foot&&PLY.ready)gearH.t=0;};
 const EYE=new T.Vector3(.394,1.32,-.12);
 const armK=k=>{if(PLY._ak===k)return;PLY._ak=k;['Left','Right'].forEach(sd=>['ForeArm','Hand'].forEach(n=>{const bn=B['mixamorig'+sd+n];if(bn)bn.position.copy(tpl.restP[bn.name]).multiplyScalar(k);}));const m=sk.material;m.emissiveMap=k>1?m.map:null;m.emissive.setScalar(k>1?.45:0);m.needsUpdate=true;};
 function seatPose(dt,showHead){armK(1.22);const root=PLY.root;if(root.parent!==car)car.add(root);root.position.set(0,0,0);root.rotation.set(0,0,0);o.position.set(0,0,0);
- play('Drive',.3);mx.update(dt);root.updateMatrixWorld(true);const hd=B.mixamorigHead;if(hd){const hp=car.worldToLocal(wp(hd,new T.Vector3()));o.position.set(EYE.x-hp.x,EYE.y-.07-hp.y,EYE.z+.05-hp.z);root.updateMatrixWorld(true);}
+ play('Drive',.3);mx.update(dt);car.updateMatrixWorld(true);// car pose for THIS frame was just set in frame(); its matrixWorld is still last frame's -> refresh first, else the head-to-eye offset lags one frame and the body shakes with every bump/turn
+ root.updateMatrixWorld(true);const hd=B.mixamorigHead;if(hd){const hp=car.worldToLocal(wp(hd,new T.Vector3()));o.position.set(EYE.x-hp.x,EYE.y-.07-hp.y,EYE.z+.05-hp.z);root.updateMatrixWorld(true);}
  if(GRIP===null)initGrip();if(GRIP&&XM.sw){car.updateMatrixWorld(true);const W=(PLY.dbgSteer??st.steer)*2.4;const gl=gripPos('Left',W,dt),gr=gripPos('Right',W,dt);
   const down=new T.Vector3(0,-1,0),outL=new T.Vector3(1,0,0).transformDirection(car.matrixWorld),fwd=new T.Vector3(0,0,-.3).transformDirection(car.matrixWorld).multiplyScalar(.3);
   ik('Left',gl,down.clone().add(outL.clone().multiplyScalar(.8)).add(fwd));
