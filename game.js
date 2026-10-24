@@ -440,11 +440,13 @@ if(NEAR.R>0)Promise.all([fetch('data/trees.json').then(r=>r.json()),fetch('data/
   const V=rm.map(e=>{const g=new THREE.BufferGeometry(),n=e.n,P=new Int16Array(rb,e.o,n*3),N=new Int8Array(rb,e.o+n*6,n*3),uo=e.o+n*9+((e.o+n*9)%2),U=new Uint16Array(rb,uo,n*2);
    g.setAttribute('position',new THREE.BufferAttribute(Float32Array.from(P,x=>x/8000),3));g.setAttribute('normal',new THREE.BufferAttribute(Float32Array.from(N,x=>x/127),3));g.setAttribute('uv',new THREE.BufferAttribute(Float32Array.from(U,x=>x/65535),2));g.setIndex(new THREE.BufferAttribute(new Uint16Array(rb,e.io,e.ni),1));g.computeBoundingSphere();return {b:tiny,l:g,bm,lm,ld};});
   ['lilac','hawthorn','shrub'].forEach((k,i)=>{NEAR.sp[k]=[V[i%V.length],V[(i+1)%V.length],V[3]];});}
+ if(RB&&window.__SHRUBP&&__SHRUBP.length){const P=__SHRUBP,V=NEAR.sp.shrub,cap=600,ims=[V[0],V[2]].map(v=>{const im=new THREE.InstancedMesh(v.l,v.lm,cap);im.customDepthMaterial=v.ld;im.castShadow=GSET.shadow>=2;im.receiveShadow=true;im.frustumCulled=false;im.count=0;S.add(im);return im;});
+  NEAR.shrub=(px,pz)=>{const R2=NEAR.R*1.3,n=[0,0];for(let i=0;i<P.length;i++){const p=P[i];if(Math.abs(p[0]-px)>R2||Math.abs(p[1]-pz)>R2)continue;const k=i&1,im=ims[k];if(n[k]>=cap)continue;const s=p[2]*.6;_m4.makeRotationY(i*2.399).scale(_v3s.set(s,s,s)).setPosition(p[0],0,p[1]);im.setMatrixAt(n[k]++,_m4);}ims.forEach((im,k)=>{im.count=n[k];im.instanceMatrix.needsUpdate=true;});};}
  if(/treegal=/.test(Q)){const m=/treegal=(-?[\d.]+),(-?[\d.]+),(\w+)/.exec(Q);const ks=m[3]=='all'?Object.keys(NEAR.sp):m[3].split('_');ks.forEach((k,i)=>{const V=NEAR.sp[k][0];[['b',V.b,V.bm],['l',V.l,V.lm]].forEach(([n,g,mt])=>{if(!g)return;const o=new THREE.Mesh(g,mt);o.position.set(+m[1]+(i-(ks.length-1)/2)*9,0,+m[2]);o.castShadow=true;if(n=='l')o.customDepthMaterial=V.ld;S.add(o);});});NEAR.R=0.01;window.__TG=1;}
  console.log('NEAR loaded',Object.keys(NEAR.sp).length,'species, R',NEAR.R);NEAR.f=0;}).catch(e=>console.log('NEAR fail',e));
-const _m4=new THREE.Matrix4(),_z4=new THREE.Matrix4().makeScale(0,0,0),_c=new THREE.Color();
+const _v3s=new THREE.Vector3(),_m4=new THREE.Matrix4(),_z4=new THREE.Matrix4().makeScale(0,0,0),_c=new THREE.Color();
 NEAR.get=(k,v,part)=>{const key=k+v+part;let im=NEAR.im[key];const V=NEAR.sp[k][v];if(!im){im=new THREE.InstancedMesh(part=='b'?V.b:V.l,part=='b'?V.bm:V.lm,64);im.count=0;im.frustumCulled=false;im.castShadow=part=='b'||GSET.shadow>=2;if(part=='l')im.customDepthMaterial=V.ld;im.receiveShadow=true;im.userData.cap=64;S.add(im);NEAR.im[key]=im;}return im;};
-NEAR.tick=(px,pz)=>{if(NEAR.sp&&!IMP.ready&&!IMP.tried){IMP.tried=1;try{IMP.bake();}catch(e){console.log('IMP fail',e);}}if(!NEAR.sp||(NEAR.f++)%10)return;const R2=NEAR.R,want={};const used={};
+NEAR.tick=(px,pz)=>{if(NEAR.sp&&!IMP.ready&&!IMP.tried){IMP.tried=1;try{IMP.bake();}catch(e){console.log('IMP fail',e);}}if(!NEAR.sp||(NEAR.f++)%10)return;if(NEAR.shrub&&NEAR.f%30==1)NEAR.shrub(px,pz);const R2=NEAR.R,want={};const used={};
  TREECH.forEach(g=>{const u=g.userData;if(!u.L||!NEAR.map[u.k])return;const c=u.c;const far=!g.visible||Math.hypot(c[0]-px,c[1]-pz)>R2+400;const hid=u.hid||(u.hid=new Set());
   const nowN=new Set();if(!far)u.L.forEach((t,i)=>{if(Math.abs(t[0]-px)<R2&&Math.abs(t[1]-pz)<R2&&Math.hypot(t[0]-px,t[1]-pz)<R2)nowN.add(i);});
   let ch=false;const brk=u.brk;hid.forEach(i=>{if(!nowN.has(i)&&!(brk&&brk.has(i))){_m4.fromArray(u.MS,i*16);g.children.forEach(m=>m.setMatrixAt(i,_m4));hid.delete(i);ch=true;}});
@@ -755,10 +757,12 @@ lineMesh(F.wl,new THREE.MeshLambertMaterial({map:wallT}),2.1,.22,4);
  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.computeVertexNormals();const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:0x9a9890,polygonOffset:true,polygonOffsetFactor:-.5}));m.receiveShadow=true;S.add(m);}
 // shrubs: OSM hedges + along sidewalks + scrub polygons
 {const pts=[];const pip=(x,z,p)=>{let c=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const a=p[i],b=p[j];if((a[1]>z)!=(b[1]>z)&&x<(b[0]-a[0])*(z-a[1])/(b[1]-a[1])+a[0])c=!c;}return c;};
- segs(F.sw,6).forEach((s,i)=>{if(i%3)return;const a=s[0],b=s[1],L=s[2]||1,nx=-(b[1]-a[1])/L,nz=(b[0]-a[0])/L,sd=i%2?1:-1;pts.push([a[0]+nx*1.8*sd,a[1]+nz*1.8*sd,.7+rnd()*.5]);});
+ if(/oldbush/.test(Q))segs(F.sw,6).forEach((s,i)=>{if(i%3)return;const a=s[0],b=s[1],L=s[2]||1,nx=-(b[1]-a[1])/L,nz=(b[0]-a[0])/L,sd=i%2?1:-1;pts.push([a[0]+nx*1.8*sd,a[1]+nz*1.8*sd,.7+rnd()*.5]);});
  F.sc.forEach(p=>{let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;p.forEach(q=>{x0=Math.min(x0,q[0]);x1=Math.max(x1,q[0]);z0=Math.min(z0,q[1]);z1=Math.max(z1,q[1]);});const n=Math.min(150,(x1-x0)*(z1-z0)/60);for(let k=0;k<n;k++){const x=x0+rnd()*(x1-x0),z=z0+rnd()*(z1-z0);if(pip(x,z,p))pts.push([x,z,1+rnd()*1.2]);}});
- const im=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.8,0).translate(0,.55,0),new THREE.MeshLambertMaterial({color:0x3f6a2c,flatShading:true}),pts.length);
- pts.forEach((p,i)=>{M4.makeRotationY(rnd()*6);M4.scale(Sc.set(p[2]*(1+rnd()*.4),p[2]*.8,p[2]));M4.setPosition(p[0],0,p[1]);im.setMatrixAt(i,M4);});S.add(im);
+ // old low-poly icosahedron blobs only with ?oldbush; otherwise points are drawn near the camera with the rooibos bush (NEAR.shrub), off roads
+ if(/oldbush/.test(Q)){const im=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.8,0).translate(0,.55,0),new THREE.MeshLambertMaterial({color:0x3f6a2c,flatShading:true}),pts.length);
+ pts.forEach((p,i)=>{M4.makeRotationY(rnd()*6);M4.scale(Sc.set(p[2]*(1+rnd()*.4),p[2]*.8,p[2]));M4.setPosition(p[0],0,p[1]);im.setMatrixAt(i,M4);});S.add(im);}
+ else{const bad=window.__treeBad;window.__SHRUBP=pts.filter(p=>!bad||!bad(p[0],p[1],1.5));}
  // hedges (OSM barrier=hedge if any)
  lineMesh(F.hg,new THREE.MeshLambertMaterial({color:0x35602a}),1.1,.8,2);}
 
