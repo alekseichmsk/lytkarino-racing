@@ -112,13 +112,14 @@ function gripPos(sd,W,dt){const G2=GRIP,h=G2.H[sd],oth=G2.H[sd==='Left'?'Right':
   if(tgt!==null){h.o0=h.o;h.o1=tgt*h.sg-W;h.t=0;}}
  h.pW=W;const ang=a*h.sg,p=G2.pt(ang),rad=p.clone().sub(G2.ctr).normalize();
  const tg=G2.u.clone().multiplyScalar(-Math.sin(ang)).add(G2.r.clone().multiplyScalar(Math.cos(ang)));h.rim=p.clone().applyMatrix4(car.matrixWorld);h.rad=rad.clone().transformDirection(car.matrixWorld);h.tg=tg.transformDirection(car.matrixWorld);h.lift=lift;
- p.add(rad.multiplyScalar(-.02+lift*.012)).add(G2.n.clone().multiplyScalar(.045+lift*.025)).sub(G2.u.clone().multiplyScalar(.015));return p.applyMatrix4(car.matrixWorld);}
+ p.add(rad.multiplyScalar(.05+lift*.012)).add(G2.n.clone().multiplyScalar(.04+lift*.025)).sub(G2.u.clone().multiplyScalar(.015));return p.applyMatrix4(car.matrixWorld);}
 // orient the hand on the rim: wrist->knuckles continues the forearm (minus the rim-tangent part), palm turned toward the rim tube, index (mitten) chain curled round the rim
 function handGrip(sd,blend){const h=GRIP.H[sd],ha=B['mixamorig'+sd+'Hand'],lo=B['mixamorig'+sd+'ForeArm'],f1=B['mixamorig'+sd+'HandIndex1'];if(!ha||!lo||!f1||!h.rim||!PLY.palm||!PLY.palm[sd])return;
  // start from the rest pose every frame: the Drive clip doesn't key hand/finger bones, so the incremental curl/twist used to accumulate frame after frame -> hands spun round the rim
  ['Hand','HandIndex1','HandIndex2','HandIndex3'].forEach(n=>{const b=B['mixamorig'+sd+n];if(b&&tpl.rest[b.name])b.quaternion.copy(tpl.rest[b.name]);});ha.updateMatrixWorld(true);
  const hp=wp(ha,new T.Vector3()),ep=wp(lo,new T.Vector3()),fa=hp.clone().sub(ep).normalize(),tg=h.tg,nW=GRIP.n.clone().transformDirection(car.matrixWorld);
- let fd=fa.clone().sub(tg.clone().multiplyScalar(fa.dot(tg))).add(nW.clone().multiplyScalar(.8)).sub(h.rad.clone().multiplyScalar(.3)).normalize();const cur=wp(f1,new T.Vector3()).sub(hp).normalize();fd=cur.clone().lerp(fd,blend).normalize();rotBoneWorld(ha,cur,fd);
+ // knuckles aim at the rim (wrist sits just outside/behind it) so the palm lies ON the rim instead of the hand reaching in over the hub
+ let fd=h.rim.clone().add(nW.clone().multiplyScalar(.012)).sub(hp);fd.sub(tg.clone().multiplyScalar(fd.dot(tg)*.7));if(fd.lengthSq()<1e-8)fd.copy(fa);fd.normalize();const cur=wp(f1,new T.Vector3()).sub(hp).normalize();fd=cur.clone().lerp(fd,blend).normalize();rotBoneWorld(ha,cur,fd);
  const q=new T.Quaternion();ha.getWorldQuaternion(q);const pn=PLY.palm[sd].clone().applyQuaternion(q);const want=h.rim.clone().sub(hp);want.sub(fd.clone().multiplyScalar(want.dot(fd)));if(want.lengthSq()>1e-8){want.normalize();const pp=pn.sub(fd.clone().multiplyScalar(pn.dot(fd))).normalize();let an=Math.atan2(fd.dot(pp.clone().cross(want)),pp.dot(want));an=Math.max(-1.3,Math.min(1.3,an))*blend;// clamp: never flip the palm through 180deg
   const tq=new T.Quaternion().setFromAxisAngle(fd,an);q.premultiply(tq);const pq=new T.Quaternion();ha.parent.getWorldQuaternion(pq);ha.quaternion.copy(pq.invert().multiply(q));ha.updateMatrixWorld(true);}
  // curl: each index segment bends toward the palm by ~55deg (less while lifted)
