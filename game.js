@@ -1869,8 +1869,8 @@ function drawHud(){const g=hudG;g.clearRect(0,0,256,128);g.fillStyle='rgba(120,2
  g.font='bold 30px sans-serif';g.fillText(st.sel==='D'?'D'+(st.g+1):st.sel,190,62);if(st.cruise){g.font='14px sans-serif';g.fillText('⏲ '+Math.round(st.cruise*3.6),190,92);}hudT.needsUpdate=true;}
 // rear camera (shown over centre screen in R)
 // BMW-style rear view camera: full CID takeover (cam view left 68% + top-down PDC tile right), tailgate camera on the model
-const RCW=470,RCV=688,RCH=254;const rcRT=new THREE.WebGLRenderTarget(mobile?288:416,mobile?156:224),rcCam=new THREE.PerspectiveCamera(78,RCW/RCH,.05,120);rcCam.position.set(0,1.0,-2.47);rcCam.rotation.set(-.35,0,0,'YXZ');car.add(rcCam);window.__RCRT=rcRT;
-const rcC=cv(RCV*2,RCH*2,()=>{}),rcCg=rcC.getContext('2d');rcCg.scale(2,2);const rcOv=new THREE.CanvasTexture(rcC);rcOv.encoding=THREE.sRGBEncoding;
+const RCW=470,RCV=688,RCH=254;const rcRT=new THREE.WebGLRenderTarget(mobile?288:416,mobile?156:224),rcCam=new THREE.PerspectiveCamera(78,RCW/RCH,.05,120);rcCam.position.set(0,1.0,-2.47);rcCam.rotation.set(-.62,0,0,'YXZ')/* tilted down so the bumper and 0..3 m of ground are in view */;car.add(rcCam);window.__RCRT=rcRT;
+const rcC=cv(RCV*2,RCH*2,()=>{}),rcCg=rcC.getContext('2d');rcCg.scale(2,2);const rcOv=new THREE.CanvasTexture(rcC);window.__RCC=rcC;rcOv.generateMipmaps=true;rcOv.minFilter=THREE.LinearMipmapLinearFilter;rcOv.anisotropy=Math.min(8,R.capabilities.getMaxAnisotropy());rcOv.encoding=THREE.sRGBEncoding;
 rcG.position.set(.09,1.045,-.733);rcG.rotation.x=-.16;cab.add(rcG);
 const rcScr=new THREE.Mesh(new THREE.PlaneGeometry(.344*RCW/RCV,.127),new THREE.MeshBasicMaterial({map:rcRT.texture,toneMapped:false}));rcScr.position.x=-.172+.172*RCW/RCV;rcScr.scale.x=-1;rcScr.material.side=THREE.DoubleSide;rcG.add(rcScr);
 const rcLn=new THREE.Mesh(new THREE.PlaneGeometry(.344,.127),new THREE.MeshBasicMaterial({map:rcOv,transparent:true,toneMapped:false}));rcLn.position.z=.001;rcG.add(rcLn);rcG.visible=false;
@@ -1879,11 +1879,19 @@ function drawRC(){const g=rcCg;g.clearRect(0,0,RCV,RCH);rcCam.updateMatrixWorld(
  const P=(x,z)=>{rcV.set(x,0.02,-z);car.localToWorld(rcV);rcV.project(rcCam);return rcV.z<1&&rcV.z>-1?[(1-(rcV.x+1)/2)*RCW,(1-(rcV.y+1)/2)*RCH]:null;};
  const line=(pts,c,w)=>{g.strokeStyle=c;g.lineWidth=w;g.beginPath();let f=1;pts.forEach(q=>{if(!q){f=1;return;}g[f?'moveTo':'lineTo'](q[0],q[1]);f=0;});g.stroke();};
  const zr=2.42; // rear bumper distance behind the car centre (car frame: +z = front, guide lines drawn at -z)
- // static distance zones (straight back, car width)
- [[0,.5,'#ff3030'],[.5,1.2,'#ffc020'],[1.2,3,'#30d060']].forEach(([a,b,c])=>{line([P(-.98,zr+a),P(-.98,zr+b)],c,3);line([P(.98,zr+a),P(.98,zr+b)],c,3);line([P(-.98,zr+b),P(-.75,zr+b)],c,3);line([P(.98,zr+b),P(.75,zr+b)],c,3);});
- // dynamic trajectory: bicycle model on rear axle (wheelbase 2.97, rear axle z=+1.49), bends with steering
- const dl=(RCS!==null?RCS:st.steer)*.6,L2=2.97,ax=1.49;const pts=s=>{const out=[];for(let d=0;d<=3.2;d+=.2){let x,z;if(Math.abs(dl)<1e-3){x=s;z=ax+d;}else{const Rr=L2/Math.tan(dl),th=d/Rr;x=Rr-(Rr-s)*Math.cos(th);z=ax+(Rr-s)*Math.sin(th);}if(z>=zr-.05)out.push(P(x,z));}return out;};
- line(pts(-.86),'rgba(80,200,255,.95)',4);line(pts(.86),'rgba(80,200,255,.95)',4);
+ // ground-projected guide lines: track width (±.84), follow steering (bicycle model on the rear axle, wb 2.97, rear axle z=+1.49), coloured by distance from the bumper
+ const dl=(RCS!==null?RCS:st.steer)*.6,L2=2.97,ax=1.49,TW=.84;
+ const gp=(s,d)=>{// lateral offset s, arc length d from the bumper -> car-frame [x,z]
+  const D=d+(zr-ax);if(Math.abs(dl)<1e-3)return [s,ax+D];const Rr=L2/Math.tan(dl),th=D/Rr;return [Rr-(Rr-s)*Math.cos(th),ax+(Rr-s)*Math.sin(th)];};
+ const Pd=(s,d)=>{const q=gp(s,d);return P(q[0],q[1]);};
+ g.lineCap='round';g.lineJoin='round';
+ const seg=(s,a,b,c,w)=>{const pts=[];for(let d=a;d<=b+1e-6;d+=.05)pts.push(Pd(s,Math.min(d,b)));line(pts,'rgba(0,0,0,.55)',w+3);line(pts,c,w);};
+ // translucent corridor
+ {const L=[],Rt=[];for(let d=0;d<=3;d+=.1){L.push(Pd(-TW,d));Rt.push(Pd(TW,d));}const poly=L.concat(Rt.reverse()).filter(Boolean);if(poly.length>3){g.fillStyle='rgba(80,200,255,.10)';g.beginPath();poly.forEach((q,i)=>g[i?'lineTo':'moveTo'](q[0],q[1]));g.closePath();g.fill();}}
+ const Z=[[0,.5,'#ff3b30'],[.5,1,'#ffcc00'],[1,3,'#34d058']];
+ Z.forEach(([a,b,c])=>{seg(-TW,a,b,c,4);seg(TW,a,b,c,4);});
+ // distance marks at 0.5 / 1 / 2 / 3 m (short inward ticks; full bar at 0.5 m)
+ [[.5,'#ff3b30',1],[1,'#ffcc00',.3],[2,'#34d058',.25],[3,'#34d058',.25]].forEach(([d,c,f])=>{[[-TW,-TW+2*TW*f],[TW,TW-2*TW*f]].forEach(([s0,s1],i)=>{if(f>=1&&i)return;const pts=[];for(let k=0;k<=8;k++)pts.push(Pd(s0+(s1-s0)*k/8,d));line(pts,'rgba(0,0,0,.55)',6);line(pts,c,3);});});
  // camera labels
  g.fillStyle='rgba(0,0,0,.55)';g.fillRect(0,0,RCW,24);g.fillStyle='#fff';g.font='13px sans-serif';g.textAlign='left';g.fillText('◉ Камера заднего вида',10,17);g.textAlign='right';g.fillText('R',RCW-10,17);
  // top-down tile with PDC arcs

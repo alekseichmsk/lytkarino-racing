@@ -169,7 +169,7 @@ function toggle(){if(!PLY.ready||PLY.seq)return;if(!PLY.foot){if(Math.abs(st.v)*
 function hint(t){let h=document.getElementById('plyHint');if(!h){h=document.createElement('div');h.id='plyHint';h.style.cssText='position:fixed;left:50%;top:22%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;font:600 15px sans-serif;padding:6px 14px;border-radius:12px;z-index:40;pointer-events:none';document.body.appendChild(h);}h.textContent=t;h.style.display='block';clearTimeout(h._t);h._t=setTimeout(()=>h.style.display='none',1600);}
 PLY.toggle=toggle;PLY._cb=(a,b,c,d)=>camBlock(a,b,c,d);
 function exitCar(){cutDoor();if(st.sel!=='P')G.setGear('P');prevChase=G.chase;G.setChase(true);PLY.foot=true;PLY.seq={k:'exit',t:0};const tc=document.getElementById('tc');if(tc)tc.style.visibility='hidden';ui.style.display=mobile?'block':'none';
- P.yaw=st.h+Math.PI*.75;P.pitch=-.15;P.h=st.h+Math.PI/2;P.spd=0;P.air=false;P.y=0;standAt(.62,-.2,P.h);PLY.cam=fcam;}
+ P.yaw=st.h-Math.PI*.4;/* camera behind the player looking AWAY from the car: W walks out from the door (yaw=h+.75pi made 'forward' point into the body -> player pinned against the car) */P.pitch=-.15;P.h=st.h+Math.PI/2;P.spd=0;P.air=false;P.y=0;standAt(.62,-.2,P.h);PLY.cam=fcam;}
 function enterCar(d=1){cutDoor();PLY.crouch=false;PLY.atk=null;updB();PLY.seq={k:'enter',t:0,x0:P.x,z0:P.z,h0:P.h,W:Math.max(.5,d/2.2)};}
 // door point in world for a car-local point
 const c2w=(lx,lz)=>{const s=Math.sin(st.h),c=Math.cos(st.h);return [st.x+lx*c+lz*s,st.z-lx*s+lz*c];};
