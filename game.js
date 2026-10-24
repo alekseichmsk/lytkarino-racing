@@ -1464,7 +1464,7 @@ function step(dt){if(window.__PHYHOLD&&!window.__PHYIN)return;
  if(!st.on)thrIn=0;
  const wantT=thrIn,wantB=(st.launch==1)?1:brkIn;
  const MODE=[{thr:3,up:.85,st:3.0,dsc:1},{thr:6,up:1,st:3.5,dsc:.6},{thr:10,up:1.08,st:4.2,dsc:0}][st.mode];st.thr+=(wantT-st.thr)*Math.min(1,dt*MODE.thr*(wantT>st.thr?1/(1+Math.abs(st.steer)*1.5+Math.abs(st.beta||0)*8):1));st.brk+=(wantB-st.brk)*Math.min(1,dt*(wantB>st.brk?16:10));
- const vS0=Math.abs(st.vx*Math.sin(st.h)+st.vz*Math.cos(st.h)),sr=(Math.abs(stIn)>Math.abs(st.steer)?MODE.st:6)/(1+vS0/30);st.steer+=(stIn-st.steer)*Math.min(1,dt*sr);// slower steering slew at speed (keyboard taps can't snap full lock)
+ const vS0=Math.abs(st.vx*Math.sin(st.h)+st.vz*Math.cos(st.h)),sr=(Math.abs(stIn)>Math.abs(st.steer)?MODE.st*1.7:8)/(1+vS0/40);st.steer+=(stIn-st.steer)*Math.min(1,dt*sr);// slower steering slew at speed (keyboard taps can't snap full lock)
  st.road=DYNO?!/offrd/.test(Q)||(/mixrd/.test(Q)&&((st.x+st.z)/9|0)%2==0):onRoad(st.x,st.z);st.sf=st.road?0:(DYNO?4:GND.surf(st.x,st.z));const SF=SURF[st.sf],wet01=typeof WX!='undefined'?[0,.75,1][WX.w]||0:0,gr=SF[0]+(SF[1]-SF[0])*wet01;st.grip=gr;
  // gearbox
  const sp=Math.abs(vf);if(st.rev){st.g=0;}else{const rpmG=sp/RW*GR[st.g]*FD*9.549;const up=Math.min(6500,(1700+Math.pow(st.thr,1.5)*4700)*MODE.up),dn=Math.min(1050+Math.pow(st.thr,2)*3300,up*.55);if(rpmG>up&&st.g<7&&st.shift<=0&&!(Math.abs(st.beta||0)>.15&&rpmG<6300)){st.g++;st.shift=.15;}else if(st.g>0&&rpmG<dn&&st.shift<=0&&sp/RW*GR[st.g-1]*FD*9.549<6200){st.g--;st.shift=.12;}}
@@ -1474,7 +1474,7 @@ function step(dt){if(window.__PHYHOLD&&!window.__PHYIN)return;
  const roll=260+1140*SF[2]+.6*sp*sp*SF[3],drag=.55*vf*vf;if(SF[4]&&sp>1.5)st.bmp=Math.max(st.bmp||0,SF[4]*Math.min(1,sp/12)*(.5+Math.random()*.5));
  // ---- tire model: bicycle model, per-axle Pacejka-like curves, friction circle, xDrive split, ABS/TC/DSC ----
  const mu0=.85*gr;st.muF=st.muF===undefined?mu0:st.muF+(mu0-st.muF)*Math.min(1,dt*3);const mu=st.muF,GG=9.81,AA=1.45,BB=1.525,LL=AA+BB,HC=.62,IZ=4300,DS=Math.max(MODE.dsc,.4);
- const maxA=.52/(1+Math.pow(Math.abs(vf)/9,1.5)),delta=st.steer*maxA;// speed-sensitive ratio: ~30 deg at standstill, ~16 @30, ~8 @60, ~5 @90, ~3.3 deg @130 km/h// ~30 deg mean (inner ~36) at standstill; variable-ratio sport steering
+ const maxA=Math.min(.52/(1+Math.pow(Math.abs(vf)/9,1.5)),Math.atan(LL*7.4/Math.max(1,vf*vf))+.03),delta=st.steer*maxA;// speed-sensitive ratio: ~30 deg at standstill, ~16 @30, ~8 @60, ~5 @90, ~3.3 deg @130 km/h// ~30 deg mean (inner ~36) at standstill; variable-ratio sport steering
  const vS=Math.abs(vf),dR=(vS<16.7?-.09*(1-vS/16.7):.04*Math.min(1,(vS-16.7)/10))*delta;// Integral Active Steering: rear opposite <60 km/h, in-phase above
  const pac=x=>{const bx=12*x;return Math.sin(1.45*Math.atan(bx+.2*(bx-Math.atan(bx))));};const pacR=x=>{const bx=14.5*x;return Math.sin(1.3*Math.atan(bx+.2*(bx-Math.atan(bx))));};/* rear keeps ~89% past the peak (no snap) */// MF: peak ~9 deg, keeps ~89% of peak far past it (no grip collapse)
  const rearSplit=st.mode==2&&st.thr>.75?.75:.6;let Fd=drv?(st.rev?-Math.min(Fraw,6000)*Math.max(0,Math.min(1,(20/3.6+vf)/1.5)):Fraw)*(st.on?1:0):0;
