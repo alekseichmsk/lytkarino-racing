@@ -432,7 +432,7 @@ if(NEAR.R>0)Promise.all([fetch('data/trees.json?v=ph1').then(r=>r.json()),fetch(
   g.setAttribute('position',new THREE.BufferAttribute(Float32Array.from(P,x=>x/500),3));g.setAttribute('normal',new THREE.BufferAttribute(Float32Array.from(N,x=>x/127),3));g.setAttribute('uv',new THREE.BufferAttribute(Float32Array.from(U,x=>x/1000),2));
   g.setIndex(new THREE.BufferAttribute(e.i32?rd(0,e.i,Uint32Array):rd(0,e.i,Uint16Array),1));g.computeBoundingSphere();return g;};
  NEAR.sp={};const MC={};const mats=(k,bk,lf)=>{const key=k+'|'+bk+'|'+lf;if(MC[key])return MC[key];const ph=/^ph_/.test(bk);const bm=new THREE.MeshLambertMaterial({map:T('bark_'+bk+'.jpg'),color:ph?0xffffff:BT[bk],emissive:bk=='birch'?0x2a2a2a:0});windPatch(bm,.25);
-  const lm=new THREE.MeshLambertMaterial({map:T('leaf_'+lf+(lf.includes('.')?'':'.png')),color:ph?0xeef4e4:(TINT[k]||0xa0c070),alphaTest:.5,side:THREE.DoubleSide});if(ph){lm.color.setRGB(1.2,1.42,1.1);lm.emissive.setRGB(.16,.2,.13);lm.emissiveMap=lm.map;}windPatch(lm,1);
+  const lm=new THREE.MeshLambertMaterial({map:T('leaf_'+lf+(lf.includes('.')?'':'.png')),color:ph?0xeef4e4:(TINT[k]||0xa0c070),alphaTest:.5,side:THREE.DoubleSide});if(ph){lm.color.setRGB(1.0,1.12,.95);lm.emissive.setRGB(.05,.065,.04);lm.emissiveMap=lm.map;}windPatch(lm,1);
   const ld=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking,map:lm.map,alphaTest:.5});return MC[key]={bm,lm,ld};};
  // Poly Haven CC0 trees (island_tree_01-03, tree_small_02, fir_tree_01 a/b/c): decimated trunk + leaf-cluster cards rendered from the real foliage (tools: tools_ph_trees/)
  Object.entries(man).forEach(([k,m])=>{NEAR.sp[k]=m.v.map(e=>({b:mkG(e.b),l:e.l?mkG(e.l):null,...mats(k,e.bark||m.bark,e.leaf||m.leaf)}));});
@@ -457,7 +457,7 @@ if(NEAR.R>0)Promise.all([fetch('data/trees.json?v=ph1').then(r=>r.json()),fetch(
  console.log('NEAR loaded',Object.keys(NEAR.sp).length,'species, R',NEAR.R);NEAR.f=0;}).catch(e=>console.log('NEAR fail',e));
 const _v3s=new THREE.Vector3(),_m4=new THREE.Matrix4(),_z4=new THREE.Matrix4().makeScale(0,0,0),_c=new THREE.Color();
 NEAR.get=(k,v,part)=>{const key=k+v+part;let im=NEAR.im[key];const V=NEAR.sp[k][v];if(!im){im=new THREE.InstancedMesh(part=='b'?V.b:V.l,part=='b'?V.bm:V.lm,64);im.count=0;im.frustumCulled=false;im.castShadow=part=='b'||GSET.shadow>=2;if(part=='l')im.customDepthMaterial=V.ld;im.receiveShadow=true;im.userData.cap=64;S.add(im);NEAR.im[key]=im;}return im;};
-NEAR.tick=(px,pz)=>{if(NEAR.sp&&!IMP.ready&&!IMP.tried){IMP.tried=1;try{IMP.bake();}catch(e){console.log('IMP fail',e);}}if(!NEAR.sp||(NEAR.f++)%10)return;if(NEAR.shrub&&NEAR.f%30==1)NEAR.shrub(px,pz);const R2=NEAR.R,want={};const used={};
+NEAR.tick=(px,pz)=>{if(NEAR.sp&&!IMP.ready&&!IMP.tried&&IMP.texOk()){IMP.tried=1;try{IMP.bake();}catch(e){console.log('IMP fail',e);}}if(!NEAR.sp||(NEAR.f++)%10)return;if(NEAR.shrub&&NEAR.f%30==1)NEAR.shrub(px,pz);const R2=NEAR.R,want={};const used={};
  TREECH.forEach(g=>{const u=g.userData;if(!u.L||!NEAR.map[u.k])return;const c=u.c;const far=!g.visible||Math.hypot(c[0]-px,c[1]-pz)>R2+400;const hid=u.hid||(u.hid=new Set());
   const nowN=new Set();if(!far)u.L.forEach((t,i)=>{if(Math.abs(t[0]-px)<R2&&Math.abs(t[1]-pz)<R2&&Math.hypot(t[0]-px,t[1]-pz)<R2)nowN.add(i);});
   let ch=false;const brk=u.brk;hid.forEach(i=>{if(!nowN.has(i)&&!(brk&&brk.has(i))){_m4.fromArray(u.MS,i*16);g.children.forEach(m=>m.setMatrixAt(i,_m4));hid.delete(i);ch=true;}});
@@ -470,10 +470,10 @@ NEAR.tick=(px,pz)=>{if(NEAR.sp&&!IMP.ready&&!IMP.tried){IMP.tried=1;try{IMP.bake
   im.count=L.length;im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;used[k+v+part]=1;});});
  Object.keys(NEAR.im).forEach(key=>{if(!used[key])NEAR.im[key].count=0;});};
 // ---------- IMP: billboard impostors baked at runtime from the ez-tree models into a 4x3 atlas; used for far tree chunks ----------
-const IMP={ready:false,mat:{}};window.__IMP=IMP;
+const IMP={ready:false,mat:{}};window.__IMP=IMP;IMP.t0=0;IMP.texOk=()=>{if(!IMP.t0)IMP.t0=performance.now();if(performance.now()-IMP.t0>40000)return true;const ks=['birch','spruce','pine','linden','poplar','maple','rowan','popcut','lilac'];for(const k of ks){const V=NEAR.sp[k]&&NEAR.sp[k][0];if(!V)return false;for(const m of [V.bm,V.lm]){const t=m&&m.map;if(t&&!(t.image&&(t.image.width||t.image.naturalWidth)))return false;}}return true;};
 IMP.bake=()=>{if(IMP.ready||!NEAR.sp||/noimp/.test(Q))return;const MAPK={birch:'birch',spruce:'spruce',pine:'pine',linden:'linden',poplar:'poplar',maple:'maple',rowan:'rowan',popcut:'popcut',bush:'lilac',tuft:'tuft'};
- const TS=mobile?128:256,AW=4*TS,AH=3*TS,rt=new THREE.WebGLRenderTarget(AW,AH);rt.texture.encoding=THREE.sRGBEncoding;const sc=new THREE.Scene();sc.add(new THREE.HemisphereLight(0xffffff,0x606050,.75));const dl=new THREE.DirectionalLight(0xffffff,.65);dl.position.set(3,6,8);sc.add(dl);
- const oc=new THREE.OrthographicCamera(-1,1,1,0,.1,200);const pr=R.getRenderTarget(),pa=R.autoClear,cc=R.getClearColor(new THREE.Color()),ca=R.getClearAlpha(),sm=R.shadowMap.enabled;R.shadowMap.enabled=false;R.setRenderTarget(rt);R.setClearColor(0x000000,0);R.clear();R.autoClear=false;
+ const TS=mobile?128:256,AW=4*TS,AH=3*TS,rt=new THREE.WebGLRenderTarget(AW,AH);rt.texture.encoding=THREE.sRGBEncoding;const sc=new THREE.Scene();sc.add(new THREE.HemisphereLight(0xffffff,0xb0b0a0,1.15));const dl=new THREE.DirectionalLight(0xffffff,.35);dl.position.set(3,6,8);sc.add(dl);
+ const oc=new THREE.OrthographicCamera(-1,1,1,0,.1,200);const pr=R.getRenderTarget(),pa=R.autoClear,cc=R.getClearColor(new THREE.Color()),ca=R.getClearAlpha(),sm=R.shadowMap.enabled;R.shadowMap.enabled=false;R.setRenderTarget(rt);R.setClearColor(0x3a4a2c,0);R.clear();R.autoClear=false;
  const qg=new THREE.PlaneGeometry(1,1).translate(0,.5,0);
  Object.keys(MAPK).forEach((k,i)=>{const V=NEAR.sp[MAPK[k]]&&NEAR.sp[MAPK[k]][0];if(!V)return;const ms=[new THREE.Mesh(V.b,V.bm)];if(V.l)ms.push(new THREE.Mesh(V.l,V.lm));const bb=new THREE.Box3();ms.forEach(m=>{sc.add(m);bb.expandByObject(m);});
   const Sz=Math.max(bb.max.x-bb.min.x,bb.max.z-bb.min.z,bb.max.y)*1.04,cx=(bb.max.x+bb.min.x)/2;oc.left=cx-Sz/2;oc.right=cx+Sz/2;oc.top=Sz;oc.bottom=0;oc.position.set(0,0,100);oc.lookAt(0,0,0);oc.updateProjectionMatrix();
@@ -2413,3 +2413,6 @@ window.__G={S,R,car,cab,body,st,K,XM,cam,C,COLX,WH,setGear,setChase,RENDER,mobil
 requestAnimationFrame(frame);
 })();
 
+
+// cabin glass haze fix: the X5 'WINDOWS'/'D_Glass' MeshStandard glass added an un-dimmed specular/env veil (pale grey haze over the whole view from inside); swap for a plain tinted basic material
+{const gfx=()=>{if(!(window.__XM&&__XM.ok))return setTimeout(gfx,1000);const rep={};let n=0;__S.traverse(o=>{if(!o.isMesh)return;const on=o.name,one=m=>{if(!m||!m.transparent)return m;let nm=m.name;if(!nm&&m.isMeshStandardMaterial&&m.opacity<.6)nm=on==='Body_8'?'WINDOWS':on==='Body_11'?'D_Glass':'';if(!(nm==='WINDOWS'||nm==='D_Glass'))return m;m={name:nm,opacity:m.opacity,side:m.side,uuid:m.uuid};if(!rep[m.uuid]){const b=new THREE.MeshBasicMaterial({name:m.name+'_b',color:m.name==='WINDOWS'?0x18222a:0x050607,transparent:true,opacity:m.name==='WINDOWS'?.16:Math.min(m.opacity,.35),depthWrite:false,side:m.side});b.userData.glass=1;rep[m.uuid]=b;}n++;return rep[m.uuid];};o.material=Array.isArray(o.material)?o.material.map(one):one(o.material);});if(!n)setTimeout(gfx,3000);};if(!/oldglass/.test(location.search))gfx();}
